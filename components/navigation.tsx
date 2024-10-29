@@ -70,8 +70,8 @@ export default function Navigation() {
     setAccount,
     web3,
     setWeb3,
-    DynamicNFTCOntract,
-    setDynamicNFTCOntract,
+    DynamicNFTContract,
+    setDynamicNFTContract,
     RoyaltyContract,
     setRoyaltyContract,
     MonitorContract,
@@ -90,7 +90,7 @@ export default function Navigation() {
 
   const initializeContracts = async (web3Instance: Web3, currentChainId: number): Promise<void> => {
     // Reset all contracts first
-    setDynamicNFTCOntract(null);
+    setDynamicNFTContract(null);
     setRoyaltyContract(null);
     setMonitorContract(null);
     setReactContract(null);
@@ -111,14 +111,14 @@ export default function Navigation() {
     } else if (currentChainId === SUPPORTED_NETWORKS.SEPOLIA.chainId) {
       try {
         // Initialize Sepolia network contracts
-        const dynamicNFTContract = new web3Instance.eth.Contract(DYNAMICNFT_ABI, DYNAMICNFT_CONTRACT_ADDRESS);
+        const DynamicNFTContract = new web3Instance.eth.Contract(DYNAMICNFT_ABI, DYNAMICNFT_CONTRACT_ADDRESS);
         const royaltyContract = new web3Instance.eth.Contract(ROYALTY_ABI, ROYALTY_CONTRACT_ADDRESS);
         const monitorContract = new web3Instance.eth.Contract(MONITOR_ABI, MONITOR_CONTRACT_ADDRESS);
 
-        setDynamicNFTCOntract(dynamicNFTContract);
+        setDynamicNFTContract(DynamicNFTContract);
         setRoyaltyContract(royaltyContract);
         setMonitorContract(monitorContract);
-        console.log("Initialized Sepolia contracts:", { dynamicNFTContract, royaltyContract, monitorContract });
+        console.log("Initialized Sepolia contracts:", { DynamicNFTContract, royaltyContract, monitorContract });
       } catch (error) {
         console.error("Error initializing Sepolia contracts:", error);
       }

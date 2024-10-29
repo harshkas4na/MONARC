@@ -10,7 +10,7 @@ import { useTheme } from 'next-themes';
 
 export default function App() {
   const [mounted, setMounted] = useState(false)
-  const { theme, setTheme } = useTheme()
+  // const { theme, setTheme } = useTheme()
 
   // useEffect only runs on the client, so now we can safely show the UI
   useEffect(() => {
@@ -39,8 +39,11 @@ export default function App() {
                 </p>
               </div>
               <div className="space-x-4">
+
                 <Button size="lg" className="bg-white text-blue-600 hover:bg-gray-100 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700">
-                  Launch App
+                  <Link href="/createNFT">
+                    Create Your Own NFT
+                  </Link>
                 </Button>
                 <Button size="lg" variant="outline" className="bg-transparent text-white border-white hover:bg-white/10">
                   Learn More
@@ -128,7 +131,10 @@ export default function App() {
                 Join thousands of creators who are already benefiting from our dynamic royalty system.
               </p>
               <Button size="lg" className="bg-white text-blue-600 hover:bg-gray-100 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700">
-                Get Started Now
+              <Link href="/createNFT">
+              Get Started Now
+                  </Link>
+                
               </Button>
             </div>
           </div>

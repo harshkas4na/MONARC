@@ -15,23 +15,23 @@ interface LoanDetails {
 }
 
 // Define a base contract interface that extends the Contract type
-type BaseContract = Contract<ContractAbi>;
+
 
 interface Web3ContextType {
   account: string;
   setAccount: (account: string) => void;
   web3: Web3 | null;
   setWeb3: (web3: Web3 | null) => void;
-  DynamicNFTCOntract: BaseContract | null;
-  setDynamicNFTCOntract: (contract: BaseContract | null) => void;
-  RoyaltyContract: BaseContract | null;
-  setRoyaltyContract: (contract: BaseContract | null) => void;
-  MonitorContract: BaseContract | null;
-  setMonitorContract: (contract: BaseContract | null) => void;
-  ReactContract: BaseContract | null;
-  setReactContract: (contract: BaseContract | null) => void;
-  WNFTContract: BaseContract | null;
-  setWNFTContract: (contract: BaseContract | null) => void;
+  DynamicNFTContract: any | null;
+  setDynamicNFTContract: (contract: any | null) => void;
+  RoyaltyContract: any | null;
+  setRoyaltyContract: (contract: any | null) => void;
+  MonitorContract: any | null;
+  setMonitorContract: (contract: any | null) => void;
+  ReactContract: any | null;
+  setReactContract: (contract: any | null) => void;
+  WNFTContract: any | null;
+  setWNFTContract: (contract: any | null) => void;
  
 }
 
@@ -45,11 +45,11 @@ interface Web3ProviderProps {
 export function Web3Provider({ children }: Web3ProviderProps) {
   const [account, setAccount] = useState<string>('');
   const [web3, setWeb3] = useState<Web3 | null>(null);
-  const [DynamicNFTCOntract, setDynamicNFTCOntract] = useState<BaseContract | null>(null);
-  const [RoyaltyContract, setRoyaltyContract] = useState<BaseContract | null>(null);
-  const [MonitorContract, setMonitorContract] = useState<BaseContract | null>(null);
-  const [ReactContract, setReactContract] = useState<BaseContract | null>(null);
-  const [WNFTContract, setWNFTContract] = useState<BaseContract | null>(null);
+  const [DynamicNFTContract, setDynamicNFTContract] = useState<any | null>(null);
+  const [RoyaltyContract, setRoyaltyContract] = useState<any | null>(null);
+  const [MonitorContract, setMonitorContract] = useState<any | null>(null);
+  const [ReactContract, setReactContract] = useState<any | null>(null);
+  const [WNFTContract, setWNFTContract] = useState<any | null>(null);
 
   
 
@@ -58,8 +58,8 @@ export function Web3Provider({ children }: Web3ProviderProps) {
     web3,
     setWeb3,
     setAccount,
-    DynamicNFTCOntract,
-    setDynamicNFTCOntract,
+    DynamicNFTContract,
+    setDynamicNFTContract,
     RoyaltyContract,
     setRoyaltyContract,
     MonitorContract,

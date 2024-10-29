@@ -4,226 +4,338 @@ import { useState, useEffect } from 'react'
 import { useTheme } from 'next-themes'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-// import { BarChart, LineChart, PieChart } from '@/components/ui/chart'
-import { ArrowDown, ArrowUp, Download, Moon, Sun, Users } from 'lucide-react'
+import { useWeb3 } from '@/contexts/Web3Context'
+import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, ArcElement, BarElement } from 'chart.js'
+import { Line, Pie, Bar } from 'react-chartjs-2'
+import { DollarSign, LineChart as LineChartIcon, BarChart as BarChartIcon, PieChart as PieChartIcon, Users, Sun, Moon, Clock, TrendingUp } from 'lucide-react'
+import { DYNAMICNFT_CONTRACT_ADDRESS } from '@/config/addresses'
 
-const kpiData = [
-  { title: "Total Volume", value: "$12.5M", change: 15.2 },
-  { title: "Average Royalty", value: "7.8%", change: -2.5 },
-  { title: "Unique Collectors", value: "5,234", change: 8.1 },
-  { title: "Active Listings", value: "12,456", change: 3.7 },
-]
-
-const lineChartData = [
-  { name: 'Jan', Earnings: 4000 },
-  { name: 'Feb', Earnings: 3000 },
-  { name: 'Mar', Earnings: 5000 },
-  { name: 'Apr', Earnings: 4500 },
-  { name: 'May', Earnings: 6000 },
-  { name: 'Jun', Earnings: 5500 },
-]
-
-const barChartData = [
-  { name: 'Collection A', value: 400 },
-  { name: 'Collection B', value: 300 },
-  { name: 'Collection C', value: 200 },
-  { name: 'Collection D', value: 278 },
-  { name: 'Collection E', value: 189 },
-]
-
-const pieChartData = [
-  { name: 'Ethereum', value: 400 },
-  { name: 'Polygon', value: 300 },
-  { name: 'Solana', value: 300 },
-]
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, ArcElement, BarElement)
 
 export default function AnalyticsDashboard() {
-  const [selectedMetric, setSelectedMetric] = useState("volume")
-  const [dateRange, setDateRange] = useState("last7days")
-  const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
+  const { theme, setTheme } = useTheme()
+  const { DynamicNFTContract, RoyaltyContract, MonitorContract, account } = useWeb3()
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [userNFTs, setUserNFTs] = useState([])
+  const [selectedNFT, setSelectedNFT] = useState(null)
+  const [dashboardData, setDashboardData] = useState({
+    averageRoyalty: 0,
+    activeListings: 0,
+    totalVolume: 0,
+    volume24h: 0,
+    volume7d: 0,
+    vwap24h: 0,
+    salesCount24h: 0,
+    highPrice24h: 0,
+    lowPrice24h: 0,
+    recentSales: [],
+    royaltyDistribution: [],
+    salesOverTime: []
+  })
 
+  const fetchUserNFTs = async () => {
+    try {
+      const balance = await DynamicNFTContract.methods.balanceOf(account).call()
+      const nfts = []
+      for (let i = 0; i < balance; i++) {
+        const tokenId = await DynamicNFTContract.methods.tokenOfOwnerByIndex(account, i).call()
+        nfts.push({ id: tokenId, name: `NFT #${tokenId}` })
+      }
+      setUserNFTs(nfts)
+      if (nfts.length > 0) {
+        setSelectedNFT(nfts[0].id)
+      }
+    } catch (err) {
+      setError('Error fetching user NFTs: ' + err.message)
+    }
+  }
+
+  const fetchDashboardData = async (tokenId) => {
+    try {
+      setLoading(true)
+      // Fetch average royalty
+      const royaltyConfigs = await RoyaltyContract.methods.getRoyaltyInfo(DYNAMICNFT_CONTRACT_ADDRESS, tokenId).call();
+      const averageRoyalty = Number(royaltyConfigs.baseRate) / 100 // Convert basis points to percentage
+      
+      // Fetch active listings
+      const totalSupply = Number(await DynamicNFTContract.methods.totalSupply().call());
+      let activeListings = 0
+      for (let i = 0; i < totalSupply; i++) {
+        const currentTokenId = await DynamicNFTContract.methods.tokenByIndex(i).call();
+        const isListed = await DynamicNFTContract.methods.isTokenListed(currentTokenId).call();
+        if (isListed) activeListings++
+      }
+
+      // Fetch market metrics from MarketMonitor
+      const marketMetrics = await MonitorContract.methods.getMarketMetrics(DYNAMICNFT_CONTRACT_ADDRESS, tokenId).call();
+      const totalVolume = Number(marketMetrics.totalVolume) / 1e18
+      const volume24h = Number(marketMetrics.volume24h) / 1e18
+      const volume7d = Number(marketMetrics.volume7d) / 1e18
+      const vwap24h = Number(marketMetrics.vwap24h) / 1e18
+      const salesCount24h = Number(marketMetrics.salesCount24h)
+      const highPrice24h = Number(marketMetrics.highPrice24h) / 1e18
+      const lowPrice24h = Number(marketMetrics.lowPrice24h) / 1e18
+
+      // Fetch recent sales and price history
+      const recentSales = await MonitorContract.methods.getPriceHistory(DYNAMICNFT_CONTRACT_ADDRESS, tokenId).call();
+
+      // Prepare data for charts
+      const royaltyDistribution = [
+        { name: 'Base Rate', value: Number(royaltyConfigs.baseRate) },
+        { name: 'Min Rate', value: Number(royaltyConfigs.minRate) },
+        { name: 'Max Rate', value: Number(royaltyConfigs.maxRate) }
+      ]
+
+      const salesOverTime = recentSales.map(sale => ({
+        date: new Date(Number(sale.timestamp) * 1000).toLocaleDateString(),
+        price: Number(sale.price) / 1e18
+      }))
+
+      setDashboardData({
+        averageRoyalty,
+        activeListings,
+        totalVolume,
+        volume24h,
+        volume7d,
+        vwap24h,
+        salesCount24h,
+        highPrice24h,
+        lowPrice24h,
+        recentSales,
+        royaltyDistribution,
+        salesOverTime
+      })
+    } catch (err) {
+      setError('Error fetching dashboard data: ' + err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+  
   useEffect(() => {
     setMounted(true)
-  }, [])
+    fetchUserNFTs()
+  }, [DynamicNFTContract, account])
+
+  useEffect(() => {
+    if (selectedNFT) {
+      fetchDashboardData(selectedNFT)
+    }
+  }, [selectedNFT, RoyaltyContract, MonitorContract])
 
   if (!mounted) return null
 
+  const salesChartData = {
+    labels: dashboardData.salesOverTime.map(sale => sale.date),
+    datasets: [
+      {
+        label: 'Sale Price',
+        data: dashboardData.salesOverTime.map(sale => sale.price),
+        borderColor: 'rgb(75, 192, 192)',
+        tension: 0.1
+      }
+    ]
+  }
+
+  const volumeChartData = {
+    labels: ['24h Volume', '7d Volume', 'Total Volume'],
+    datasets: [
+      {
+        label: 'Volume (ETH)',
+        data: [dashboardData.volume24h, dashboardData.volume7d, dashboardData.totalVolume],
+        backgroundColor: ['rgba(255, 99, 132, 0.5)', 'rgba(54, 162, 235, 0.5)', 'rgba(255, 206, 86, 0.5)'],
+      }
+    ]
+  }
+
+  const royaltyChartData = {
+    labels: dashboardData.royaltyDistribution.map(item => item.name),
+    datasets: [
+      {
+        data: dashboardData.royaltyDistribution.map(item => item.value),
+        backgroundColor: ['rgba(255, 99, 132, 0.5)', 'rgba(54, 162, 235, 0.5)', 'rgba(255, 206, 86, 0.5)'],
+      }
+    ]
+  }
+
   return (
-    <div className="container mx-auto px-4 py-8 bg-background dark:bg-gray-900 transition-colors duration-300">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold dark:text-white">Analytics Dashboard</h1>
-        
-      </div>
+    <div className="flex flex-col min-h-screen bg-background dark:bg-gray-900 transition-colors duration-300">
+      <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 dark:bg-gray-900/95 dark:border-gray-800">
+        <div className="container flex items-center justify-between h-16 px-4">
+          <h1 className="text-2xl font-bold dark:text-white">Analytics Dashboard</h1>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          >
+            {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+          </Button>
+        </div>
+      </header>
 
-      {/* Metrics Overview */}
-      <div className="grid gap-6 mb-8 md:grid-cols-2 lg:grid-cols-4">
-        {kpiData.map((kpi, index) => (
-          <Card key={index} className="dark:bg-gray-800">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium dark:text-gray-200">{kpi.title}</CardTitle>
-              {kpi.change > 0 ? (
-                <ArrowUp className="h-4 w-4 text-green-500" />
-              ) : (
-                <ArrowDown className="h-4 w-4 text-red-500" />
-              )}
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold dark:text-white">{kpi.value}</div>
-              <p className="text-xs text-muted-foreground dark:text-gray-400">
-                {kpi.change > 0 ? '+' : ''}{kpi.change}% from last month
-              </p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* Charts Section */}
-      <div className="grid gap-6 mb-8 md:grid-cols-2">
-        <Card className="dark:bg-gray-800">
+      <main className="flex-1 container px-4 py-8">
+        <Card className="mb-8 dark:bg-gray-800">
           <CardHeader>
-            <CardTitle className="dark:text-white">Earnings Over Time</CardTitle>
+            <CardTitle className="dark:text-white">Select NFT</CardTitle>
           </CardHeader>
           <CardContent>
-            {/* <LineChart
-              data={lineChartData}
-              index="name"
-              categories={["Earnings"]}
-              colors={["blue"]}
-              yAxisWidth={40}
-              className="h-[300px]"
-            /> */}
+            <Select onValueChange={(value) => setSelectedNFT(value)} value={selectedNFT}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select an NFT" />
+              </SelectTrigger>
+              <SelectContent>
+                {userNFTs.map((nft) => (
+                  <SelectItem key={nft.id} value={nft.id}>{nft.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </CardContent>
         </Card>
-        <Card className="dark:bg-gray-800">
-          <CardHeader>
-            <CardTitle className="dark:text-white">Collection Performance</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {/* <BarChart
-              data={barChartData}
-              index="name"
-              categories={["value"]}
-              colors={["blue"]}
-              yAxisWidth={40}
-              className="h-[300px]"
-            /> */}
-          </CardContent>
-        </Card>
-      </div>
-      <Card className="mb-8 dark:bg-gray-800">
-        <CardHeader>
-          <CardTitle className="dark:text-white">Revenue Distribution by Chain</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {/* <PieChart
-            data={pieChartData}
-            index="name"
-            categories={["value"]}
-            colors={["sky", "indigo", "violet"]}
-            className="h-[300px]"
-          /> */}
-        </CardContent>
-      </Card>
 
-      {/* Custom Reports */}
-      <Card className="mb-8 dark:bg-gray-800">
-        <CardHeader>
-          <CardTitle className="dark:text-white">Custom Reports</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-3">
-            <div>
-              <Label htmlFor="metric" className="dark:text-gray-200">Metric</Label>
-              <Select value={selectedMetric} onValueChange={setSelectedMetric}>
-                <SelectTrigger id="metric" className="dark:bg-gray-700 dark:text-white">
-                  <SelectValue placeholder="Select metric" />
-                </SelectTrigger>
-                <SelectContent className="dark:bg-gray-700">
-                  <SelectItem value="volume">Volume</SelectItem>
-                  <SelectItem value="royalties">Royalties</SelectItem>
-                  <SelectItem value="sales">Sales</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="date-range" className="dark:text-gray-200">Date Range</Label>
-              <Select value={dateRange} onValueChange={setDateRange}>
-                <SelectTrigger id="date-range" className="dark:bg-gray-700 dark:text-white">
-                  <SelectValue placeholder="Select date range" />
-                </SelectTrigger>
-                <SelectContent className="dark:bg-gray-700">
-                  <SelectItem value="last7days">Last 7 days</SelectItem>
-                  <SelectItem value="last30days">Last 30 days</SelectItem>
-                  <SelectItem value="last3months">Last 3 months</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-end">
-              <Button className="w-full">Generate Report</Button>
-            </div>
+        {loading ? (
+          <div className="flex justify-center items-center h-full">
+            <p className="text-lg dark:text-white">Loading dashboard data...</p>
           </div>
-        </CardContent>
-      </Card>
+        ) : error ? (
+          <Alert variant="destructive">
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        ) : (
+          <>
+            <div className="grid gap-6 mb-8 md:grid-cols-2 lg:grid-cols-4">
+              <Card className="dark:bg-gray-800">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium dark:text-gray-200">Total Volume</CardTitle>
+                  <DollarSign className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold dark:text-white">{dashboardData.totalVolume.toFixed(2)} ETH</div>
+                </CardContent>
+              </Card>
+              <Card className="dark:bg-gray-800">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium dark:text-gray-200">24h Volume</CardTitle>
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold dark:text-white">{dashboardData.volume24h.toFixed(2)} ETH</div>
+                </CardContent>
+              </Card>
+              <Card className="dark:bg-gray-800">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium dark:text-gray-200">7d Volume</CardTitle>
+                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold dark:text-white">{dashboardData.volume7d.toFixed(2)} ETH</div>
+                </CardContent>
+              </Card>
+              <Card className="dark:bg-gray-800">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium dark:text-gray-200">Active Listings</CardTitle>
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold dark:text-white">{dashboardData.activeListings}</div>
+                </CardContent>
+              </Card>
+            </div>
 
-      {/* Real-time Updates */}
-      <Card className="dark:bg-gray-800">
-        <CardHeader>
-          <CardTitle className="dark:text-white">Real-time Activity</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="transactions">
-            <TabsList className="dark:bg-gray-700">
-              <TabsTrigger value="transactions" className="dark:text-gray-200 dark:data-[state=active]:bg-gray-600">Transactions</TabsTrigger>
-              <TabsTrigger value="listings" className="dark:text-gray-200 dark:data-[state=active]:bg-gray-600">New Listings</TabsTrigger>
-              <TabsTrigger value="alerts" className="dark:text-gray-200 dark:data-[state=active]:bg-gray-600">Alerts</TabsTrigger>
-            </TabsList>
-            <TabsContent value="transactions">
-              <div className="space-y-4">
-                {[...Array(5)].map((_, i) => (
-                  <div key={i} className="flex items-center justify-between border-b dark:border-gray-700 pb-2">
-                    <div>
-                      <p className="font-medium dark:text-white">NFT #1234 sold</p>
-                      <p className="text-sm text-muted-foreground dark:text-gray-400">0.5 ETH • 2 mins ago</p>
-                    </div>
-                    <Users className="h-4 w-4 text-muted-foreground dark:text-gray-400" />
+            <div className="grid gap-6 mb-8 md:grid-cols-2 lg:grid-cols-3">
+              <Card className="dark:bg-gray-800">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium dark:text-gray-200">24h VWAP</CardTitle>
+                  <LineChartIcon className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold dark:text-white">{dashboardData.vwap24h.toFixed(4)} ETH</div>
+                </CardContent>
+              </Card>
+              <Card className="dark:bg-gray-800">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium dark:text-gray-200">24h High</CardTitle>
+                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold dark:text-white">{dashboardData.highPrice24h.toFixed(4)} ETH</div>
+                </CardContent>
+              </Card>
+              <Card className="dark:bg-gray-800">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium dark:text-gray-200">24h Low</CardTitle>
+                  <TrendingUp className="h-4 w-4 text-muted-foreground" rotate={180} />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold dark:text-white">{dashboardData.lowPrice24h.toFixed(4)} ETH</div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid gap-6 mb-8 md:grid-cols-2">
+              <Card className="dark:bg-gray-800">
+                <CardHeader>
+                  <CardTitle className="dark:text-white">Sales Over Time</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[300px]">
+                    <Line data={salesChartData} options={{ maintainAspectRatio: false, responsive: true }} />
                   </div>
-                ))}
-              </div>
-            </TabsContent>
-            <TabsContent value="listings">
-              <div className="space-y-4">
-                {[...Array(5)].map((_, i) => (
-                  <div key={i} className="flex items-center justify-between border-b dark:border-gray-700 pb-2">
-                    <div>
-                      <p className="font-medium dark:text-white">New listing: Cosmic Voyage #42</p>
-                      <p className="text-sm text-muted-foreground dark:text-gray-400">Listed for 2 ETH • 5 mins ago</p>
-                    </div>
-                    <Users className="h-4 w-4 text-muted-foreground dark:text-gray-400" />
+                </CardContent>
+              </Card>
+              <Card className="dark:bg-gray-800">
+                <CardHeader>
+                  <CardTitle  className="dark:text-white">Volume Comparison</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[300px]">
+                    <Bar data={volumeChartData} options={{ maintainAspectRatio: false, responsive: true }} />
                   </div>
-                ))}
-              </div>
-            </TabsContent>
-            <TabsContent value="alerts">
-              <div className="space-y-4">
-                {[...Array(5)].map((_, i) => (
-                  <div key={i} className="flex items-center justify-between border-b dark:border-gray-700 pb-2">
-                    <div>
-                      <p className="font-medium dark:text-white">High value sale alert</p>
-                      <p className="text-sm text-muted-foreground dark:text-gray-400">NFT #5678 sold for 10 ETH • 10 mins ago</p>
-                    </div>
-                    <Users className="h-4 w-4 text-muted-foreground dark:text-gray-400" />
-                  </div>
-                ))}
-              </div>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card className="dark:bg-gray-800 mb-8">
+              <CardHeader>
+                <CardTitle className="dark:text-white">Royalty Distribution</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px]">
+                  <Pie data={royaltyChartData} options={{ maintainAspectRatio: false, responsive: true }} />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="dark:bg-gray-800">
+              <CardHeader>
+                <CardTitle className="dark:text-white">Recent Sales</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <table className="w-full">
+                  <thead>
+                    <tr>
+                      <th className="text-left dark:text-gray-200">Date</th>
+                      <th className="text-left dark:text-gray-200">Price</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dashboardData.recentSales.slice(0, 5).map((sale, index) => (
+                      <tr key={index}>
+                        <td className="dark:text-gray-300">{new Date(Number(sale.timestamp) * 1000).toLocaleDateString()}</td>
+                        <td className="dark:text-gray-300">{(Number(sale.price)/1e18).toFixed(4)} ETH</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </CardContent>
+            </Card>
+          </>
+        )}
+      </main>
     </div>
   )
 }
