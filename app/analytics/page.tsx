@@ -9,8 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useWeb3 } from '@/contexts/Web3Context'
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, ArcElement, BarElement } from 'chart.js'
 import { Line, Pie, Bar } from 'react-chartjs-2'
-import { DollarSign, LineChart as LineChartIcon, BarChart as BarChartIcon, PieChart as PieChartIcon, Users, Sun, Moon, Clock, TrendingUp } from 'lucide-react'
+import { DollarSign, LineChart as LineChartIcon, BarChart as BarChartIcon, PieChart as PieChartIcon, Users, Sun, Moon, Clock, TrendingUp, Link2, LinkIcon } from 'lucide-react'
 import { DYNAMICNFT_CONTRACT_ADDRESS } from '@/config/addresses'
+import Link from 'next/link'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, ArcElement, BarElement)
 
@@ -21,7 +22,7 @@ export default function AnalyticsDashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [userNFTs, setUserNFTs] = useState([])
-  const [selectedNFT, setSelectedNFT] = useState(null)
+  const [selectedNFT, setSelectedNFT] = useState(1)
   const [dashboardData, setDashboardData] = useState({
     averageRoyalty: 0,
     activeListings: 0,
@@ -39,11 +40,14 @@ export default function AnalyticsDashboard() {
 
   const fetchUserNFTs = async () => {
     try {
-      const balance = await DynamicNFTContract.methods.balanceOf(account).call()
+      const totalSupply = await DynamicNFTContract.methods.totalSupply().call()
       const nfts = []
-      for (let i = 0; i < balance; i++) {
-        const tokenId = await DynamicNFTContract.methods.tokenOfOwnerByIndex(account, i).call()
-        nfts.push({ id: tokenId, name: `NFT #${tokenId}` })
+      for (let i = 0; i < totalSupply; i++) {
+        const tokenId = await DynamicNFTContract.methods.tokenByIndex(i).call()
+        const royaltyConfig = await RoyaltyContract.methods.getRoyaltyInfo(DYNAMICNFT_CONTRACT_ADDRESS, tokenId).call()
+        if (royaltyConfig.beneficiary.toLowerCase() === account.toLowerCase()) {
+          nfts.push({ id: Number(tokenId), name: `NFT #${tokenId}` })
+        }
       }
       setUserNFTs(nfts)
       if (nfts.length > 0) {
@@ -53,6 +57,7 @@ export default function AnalyticsDashboard() {
       setError('Error fetching user NFTs: ' + err.message)
     }
   }
+  console.log("userNFTs:",userNFTs);
 
   const fetchDashboardData = async (tokenId) => {
     try {
@@ -119,7 +124,7 @@ export default function AnalyticsDashboard() {
   useEffect(() => {
     setMounted(true)
     fetchUserNFTs()
-  }, [DynamicNFTContract, account])
+  }, [DynamicNFTContract, RoyaltyContract, account])
 
   useEffect(() => {
     if (selectedNFT) {
@@ -167,13 +172,7 @@ export default function AnalyticsDashboard() {
       <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 dark:bg-gray-900/95 dark:border-gray-800">
         <div className="container flex items-center justify-between h-16 px-4">
           <h1 className="text-2xl font-bold dark:text-white">Analytics Dashboard</h1>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          >
-            {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-          </Button>
+          
         </div>
       </header>
 
@@ -181,7 +180,9 @@ export default function AnalyticsDashboard() {
         <Card className="mb-8 dark:bg-gray-800">
           <CardHeader>
             <CardTitle className="dark:text-white">Select NFT</CardTitle>
-          </CardHeader>
+            <p className='dark:text-gray-400 text-gray-700'>
+      Note: Only NFTs with configured royalty settings are displayed. To set royalty configuration for your NFTs, please visit the <Link href="/createNFT" className='text-blue-300'>CreateNFT page</Link>.
+    </p>          </CardHeader>
           <CardContent>
             <Select onValueChange={(value) => setSelectedNFT(value)} value={selectedNFT}>
               <SelectTrigger className="w-full">
@@ -277,7 +278,7 @@ export default function AnalyticsDashboard() {
             </div>
 
             <div className="grid gap-6 mb-8 md:grid-cols-2">
-              <Card className="dark:bg-gray-800">
+              <Card  className="dark:bg-gray-800">
                 <CardHeader>
                   <CardTitle className="dark:text-white">Sales Over Time</CardTitle>
                 </CardHeader>
@@ -289,7 +290,7 @@ export default function AnalyticsDashboard() {
               </Card>
               <Card className="dark:bg-gray-800">
                 <CardHeader>
-                  <CardTitle  className="dark:text-white">Volume Comparison</CardTitle>
+                  <CardTitle className="dark:text-white">Volume Comparison</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="h-[300px]">

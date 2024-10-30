@@ -12,7 +12,10 @@ import { Switch } from '@/components/ui/switch'
 import { Slider } from '@/components/ui/slider'
 import { useWeb3 } from '@/contexts/Web3Context'
 import { DYNAMICNFT_CONTRACT_ADDRESS } from '@/config/addresses'
-import { Upload, Sun, Moon } from 'lucide-react'
+import { Upload, Sun, Moon, Loader2 } from 'lucide-react'
+import { ipfsHashToTokenId, tokenIdToIpfsHash } from '@/utils/ipfsHashConverter';
+import { uploadImageToIPFS } from '@/utils/ipfsUtils';
+import Image from 'next/image'
 
 // Global Royalty Rate Limits
 const globalMinRate = 500 // 5% minimum rate
@@ -35,11 +38,14 @@ export default function CreateNFTPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
+  const [uploadingImage, setUploadingImage] = useState(false)
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
   const router = useRouter()
   const [isMinted, setIsMinted] = useState(false)
   const [mintedTokenId, setMintedTokenId] = useState(null)
+  
+  const [previewImage, setPreviewImage] = useState("");
 
   useEffect(() => {
     setMounted(true)
@@ -51,37 +57,58 @@ export default function CreateNFTPage() {
   if (!mounted) return null
 
   const handleImageUpload = async (e) => {
-    setImage(e.target.files[0])
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    setImage(file);
+    setUploadingImage(true);
+    setError('');
+    
     try {
-      // Simulating IPFS upload
-      const fakeIpfsHash = `Qm${Math.random().toString(36).substring(2, 15)}${Math.random().toString(36).substring(2, 15)}`
-      setIpfsHash(fakeIpfsHash)
+      const { ipfsHash, url } = await uploadImageToIPFS(file);
+      
+      setIpfsHash(ipfsHash);
+      setPreviewImage(url);
+      setSuccess('Image uploaded successfully to IPFS!');
+      
     } catch (err) {
-      setError('Error uploading image to IPFS')
+      console.error('Error uploading to IPFS:', err);
+      setError('Error uploading to IPFS: ' + err.message);
+      setPreviewImage('');
+      setIpfsHash('');
+    } finally {
+      setUploadingImage(false);
     }
-  }
+  };
 
   const handleMintNFT = async () => {
-    setLoading(true)
+    setLoading(true);
     try {
-      if (!DynamicNFTContract) throw new Error('Contract not initialized')
-      const tx = await DynamicNFTContract.methods.mint(account, 4).send({ from: account })
-      setSuccess('NFT minted successfully!')
-      setIsMinted(true)
-      setMintedTokenId(4) // Assuming ipfsHash is used as tokenId
+      if (!DynamicNFTContract) throw new Error('Contract not initialized');
+      
+      const tokenId = ipfsHashToTokenId(ipfsHash);
+      const tx = await DynamicNFTContract.methods.mint(account, tokenId).send({ from: account });
+      
+      setSuccess('NFT minted successfully!');
+      setIsMinted(true);
+      setMintedTokenId(tokenId);
+      
+      const hashMapping = JSON.parse(localStorage.getItem('ipfsHashMapping') || '{}');
+      hashMapping[tokenId] = ipfsHash;
+      localStorage.setItem('ipfsHashMapping', JSON.stringify(hashMapping));
+      
     } catch (err) {
-      setError('Error minting NFT: ' + err.message)
+      setError('Error minting NFT: ' + err.message);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleSetRoyalty = async () => {
     if (!isMinted) {
       setError('Please mint the NFT before setting the royalty configuration.')
       return
     }
-    console.log(royalty)
 
     setLoading(true)
     try {
@@ -97,7 +124,7 @@ export default function CreateNFTPage() {
     } catch (err) {
       setError('Error setting royalty configuration: ' + err.message)
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
@@ -124,13 +151,41 @@ export default function CreateNFTPage() {
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-center w-full">
-                <Label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-full h-64 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:hover:border-gray-500">
-                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                    <Upload className="w-8 h-8 mb-4 text-gray-500 dark:text-gray-400" />
-                    <p className="mb-2 text-sm text-gray-500 dark:text-gray-400"><span className="font-semibold">Click to upload</span> or drag and drop</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">SVG, PNG, JPG or GIF (MAX. 800x400px)</p>
-                  </div>
-                  <Input id="dropzone-file" type="file" className="hidden" onChange={handleImageUpload} />
+                <Label 
+                  htmlFor="dropzone-file" 
+                  className={`flex flex-col items-center justify-center w-full h-64 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:hover:border-gray-500 relative ${uploadingImage ? 'pointer-events-none' : ''}`}
+                >
+                  {uploadingImage ? (
+                    <div className="flex flex-col items-center justify-center space-y-2">
+                      <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Uploading to IPFS...</p>
+                    </div>
+                  ) : !previewImage ? (
+                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                      <Upload className="w-8 h-8 mb-4 text-gray-500 dark:text-gray-400" />
+                      <p className="mb-2 text-sm text-gray-500 dark:text-gray-400">
+                        <span className="font-semibold">Click to upload</span> or drag and drop
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        SVG, PNG, JPG or GIF (MAX. 800x400px)
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
+                      <img
+                        src={previewImage}
+                        alt="Preview"
+                        className="object-contain max-h-full max-w-full p-2"
+                      />
+                    </div>
+                  )}
+                  <Input 
+                    id="dropzone-file" 
+                    type="file" 
+                    className="hidden" 
+                    onChange={handleImageUpload}
+                    disabled={uploadingImage}
+                  />
                 </Label>
               </div>
               {ipfsHash && (
@@ -202,7 +257,14 @@ export default function CreateNFTPage() {
             </CardContent>
             <CardFooter>
               <Button onClick={handleSetRoyalty} disabled={!isMinted || loading} className="w-full">
-                Set Royalty Configuration
+                {loading ? (
+                  <div className="flex items-center space-x-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Processing...</span>
+                  </div>
+                ) : (
+                  'Set Royalty Configuration'
+                )}
               </Button>
             </CardFooter>
           </Card>
@@ -222,8 +284,21 @@ export default function CreateNFTPage() {
         )}
 
         <div className="flex justify-center mt-12 space-x-4">
-          <Button size="lg" onClick={handleMintNFT} disabled={loading || !ipfsHash || isMinted}>
-            {isMinted ? 'NFT Minted' : 'Mint NFT'}
+          <Button 
+            size="lg" 
+            onClick={handleMintNFT} 
+            disabled={loading || !ipfsHash || isMinted || uploadingImage}
+          >
+            {loading ? (
+              <div className="flex items-center space-x-2">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Minting...</span>
+              </div>
+            ) : isMinted ? (
+              'NFT Minted'
+            ) : (
+              'Mint NFT'
+            )}
           </Button>
           <Button size="lg" onClick={() => router.push('/listNFTs')} variant="outline">
             List Your NFTs
