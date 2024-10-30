@@ -18,6 +18,8 @@ interface LoanDetails {
 
 
 interface Web3ContextType {
+  selectedNetwork: string;
+  setSelectedNetwork: (network: string) => void;
   account: string;
   setAccount: (account: string) => void;
   web3: Web3 | null;
@@ -50,10 +52,14 @@ export function Web3Provider({ children }: Web3ProviderProps) {
   const [MonitorContract, setMonitorContract] = useState<any | null>(null);
   const [ReactContract, setReactContract] = useState<any | null>(null);
   const [WNFTContract, setWNFTContract] = useState<any | null>(null);
+  const [selectedNetwork, setSelectedNetwork] = useState<string>('');
+
 
   
 
   const value: Web3ContextType = {
+    selectedNetwork,
+    setSelectedNetwork,
     account,
     web3,
     setWeb3,

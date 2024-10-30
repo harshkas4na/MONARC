@@ -6,7 +6,7 @@ import Web3 from 'web3';
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { Bell, ChevronDown, Menu, Moon, Search, Sun } from 'lucide-react'
+import { Bell, ChevronDown, Menu, Moon, Search, Settings, Sun } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useTheme } from 'next-themes'
 import { useWeb3 } from '@/contexts/Web3Context';
@@ -60,12 +60,13 @@ const SUPPORTED_NETWORKS: SupportedNetworks = {
 export default function Navigation() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const { theme, setTheme } = useTheme()
-  const [selectedNetwork, setSelectedNetwork] = useState<string>('');
   const [chainId, setChainId] = useState<number>(11155111);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   const {
+    selectedNetwork,
+    setSelectedNetwork,
     account,
     setAccount,
     web3,
@@ -253,7 +254,7 @@ export default function Navigation() {
     { label: 'Dashboard', href: '/dashboard' },
     { label: 'Collections', href: '/collections' },
     { label: 'Analytics', href: '/analytics' },
-    { label: 'Settings', href: '/settings' },
+    { label: 'Create NFT', href: '/createNFT' },
   ]
 
   return (
@@ -311,8 +312,10 @@ export default function Navigation() {
               <span className="sr-only">Toggle theme</span>
             </Button>
             <Button size="icon" variant="ghost">
-              <Bell className="h-4 w-4" />
-              <span className="sr-only">Notifications</span>
+              <Link href="/settings">
+              <Settings className="h-4 w-4" />
+              <span className="sr-only">Settings</span>
+              </Link>
             </Button>
             <Select 
         value={selectedNetwork} 
