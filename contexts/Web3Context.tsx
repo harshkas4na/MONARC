@@ -34,6 +34,8 @@ interface Web3ContextType {
   setReactContract: (contract: any | null) => void;
   WNFTContract: any | null;
   setWNFTContract: (contract: any | null) => void;
+  IpfsHashStorageContract: any | null;
+  setIpfsHashStorageContract: (contract: any | null) => void;
  
 }
 
@@ -53,6 +55,7 @@ export function Web3Provider({ children }: Web3ProviderProps) {
   const [ReactContract, setReactContract] = useState<any | null>(null);
   const [WNFTContract, setWNFTContract] = useState<any | null>(null);
   const [selectedNetwork, setSelectedNetwork] = useState<string>('');
+  const [IpfsHashStorageContract, setIpfsHashStorageContract] = useState<any | null>(null);
 
 
   
@@ -74,6 +77,8 @@ export function Web3Provider({ children }: Web3ProviderProps) {
     setReactContract,
     WNFTContract,
     setWNFTContract,
+    IpfsHashStorageContract,
+    setIpfsHashStorageContract,
   };
 
   return (

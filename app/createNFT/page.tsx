@@ -22,7 +22,7 @@ const globalMinRate = 500 // 5% minimum rate
 const globalMaxRate = 2000 // 20% maximum rate
 
 export default function CreateNFTPage() {
-  const { DynamicNFTContract, RoyaltyContract, account } = useWeb3()
+  const { DynamicNFTContract, RoyaltyContract, account,IpfsHashStorageContract } = useWeb3()
   const [image, setImage] = useState(null)
   const [ipfsHash, setIpfsHash] = useState('')
   const [royalty, setRoyalty] = useState({
@@ -86,16 +86,14 @@ export default function CreateNFTPage() {
     try {
       if (!DynamicNFTContract) throw new Error('Contract not initialized');
       
-      const tokenId = ipfsHashToTokenId(ipfsHash);
+      const tokenId = Number(await IpfsHashStorageContract.methods.getTotalIPFSHashes().call());
+      const tx2 = await IpfsHashStorageContract.methods.storeIPFSHash(ipfsHash).send({ from: account});
       const tx = await DynamicNFTContract.methods.mint(account, tokenId).send({ from: account });
       
       setSuccess('NFT minted successfully!');
       setIsMinted(true);
       setMintedTokenId(tokenId);
       
-      const hashMapping = JSON.parse(localStorage.getItem('ipfsHashMapping') || '{}');
-      hashMapping[tokenId] = ipfsHash;
-      localStorage.setItem('ipfsHashMapping', JSON.stringify(hashMapping));
       
     } catch (err) {
       setError('Error minting NFT: ' + err.message);

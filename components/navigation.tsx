@@ -17,7 +17,8 @@ import {
   ROYALTY_CONTRACT_ADDRESS,
   MONITOR_CONTRACT_ADDRESS,
   WNFT_CONTRACT_ADDRESS,
-  REACT_CONTRACT_ADDRESS
+  REACT_CONTRACT_ADDRESS,
+  IPFS_HASH_STORAGE_CONTRACT_ADDRESS
 } from '@/config/addresses';
 
 import DYNAMICNFT_ABI from '@/config/abi/DynamicNFT_ABI.json';
@@ -25,6 +26,7 @@ import ROYALTY_ABI from '@/config/abi/Royalty_ABI.json';
 import MONITOR_ABI from '@/config/abi/Monitor_ABI.json';
 import WNFT_ABI from '@/config/abi/WNFT_ABI.json';
 import REACT_ABI from '@/config/abi/React_ABI.json';
+import IPFS_HASH_STORAGE_ABI from '@/config/abi/IpfsHash_Storage_ABI.json';
 
 
 interface NetworkConfig {
@@ -81,6 +83,8 @@ export default function Navigation() {
     setReactContract,
     WNFTContract,
     setWNFTContract,
+    IpfsHashStorageContract,
+    setIpfsHashStorageContract
   } = useWeb3();
 
   const getCurrentNetworkKey = (currentChainId: number): string => {
@@ -115,11 +119,13 @@ export default function Navigation() {
         const DynamicNFTContract = new web3Instance.eth.Contract(DYNAMICNFT_ABI, DYNAMICNFT_CONTRACT_ADDRESS);
         const royaltyContract = new web3Instance.eth.Contract(ROYALTY_ABI, ROYALTY_CONTRACT_ADDRESS);
         const monitorContract = new web3Instance.eth.Contract(MONITOR_ABI, MONITOR_CONTRACT_ADDRESS);
+        const IpfsHashStorageContract = new web3Instance.eth.Contract(IPFS_HASH_STORAGE_ABI, IPFS_HASH_STORAGE_CONTRACT_ADDRESS); 
 
         setDynamicNFTContract(DynamicNFTContract);
         setRoyaltyContract(royaltyContract);
         setMonitorContract(monitorContract);
-        console.log("Initialized Sepolia contracts:", { DynamicNFTContract, royaltyContract, monitorContract });
+        setIpfsHashStorageContract(IpfsHashStorageContract);
+        console.log("Initialized Sepolia contracts:", { DynamicNFTContract, royaltyContract, monitorContract, IpfsHashStorageContract });
       } catch (error) {
         console.error("Error initializing Sepolia contracts:", error);
       }

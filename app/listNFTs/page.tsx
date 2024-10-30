@@ -9,7 +9,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { useWeb3 } from '@/contexts/Web3Context'
 import { DYNAMICNFT_CONTRACT_ADDRESS } from '@/config/addresses'
 import { Skeleton } from '@/components/ui/skeleton'
-import { formatTokenId, tokenIdToIpfsHash } from '@/utils/ipfsHashConverter'
+import { formatTokenId } from '@/utils/ipfsHashConverter'
 
 const ListNFTPage = () => {
   const [nfts, setNfts] = useState([])
@@ -18,14 +18,17 @@ const ListNFTPage = () => {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
-  const { DynamicNFTContract, account } = useWeb3()
+  const { DynamicNFTContract, account, IpfsHashStorageContract } = useWeb3()
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
 
-  const getImageUrl = (tokenId) => {
+  const getImageUrl = async (tokenId: bigint) => {
     try {
-      const ipfsHash = tokenIdToIpfsHash(tokenId)
+      
+      const ipfsHash = await IpfsHashStorageContract.methods.getIPFSHash(Number(tokenId)).call()
+      console.log(ipfsHash)
       return `${process.env.NEXT_PUBLIC_GATEWAY_URL}/ipfs/${ipfsHash}`
+      
     } catch (err) {
       console.error('Error converting tokenId to IPFS hash:', err)
       return ''
@@ -35,20 +38,17 @@ const ListNFTPage = () => {
   const fetchUserNFTs = async () => {
     try {
       setLoading(true)
-      const balance = Number(await DynamicNFTContract.methods.balanceOf(account).call());
-      const userNfts = []
-      for (let i = 0; i < balance; i++) {
-        const tokenId = await DynamicNFTContract.methods.tokenOfOwnerByIndex(account, i).call();
-        console.log(tokenId);
-        const imageUrl = getImageUrl(tokenId)
-        console.log(imageUrl);
-        userNfts.push({ 
+      const balance = Number(await DynamicNFTContract.methods.balanceOf(account).call())
+      const userNftsPromises = Array(balance).fill(0).map(async (_, i) => {
+        const tokenId = await DynamicNFTContract.methods.tokenOfOwnerByIndex(account, i).call()
+        const imageUrl = await getImageUrl(tokenId)
+        return { 
           tokenId: tokenId.toString(), 
           imageUrl,
-          // Keep tokenURI for backwards compatibility
-          tokenURI: imageUrl 
-        })
-      }
+          tokenURI: imageUrl // Keep tokenURI for backwards compatibility
+        }
+      })
+      const userNfts = await Promise.all(userNftsPromises)
       setNfts(userNfts)
     } catch (err) {
       setError('Error fetching user NFTs: ' + err.message)
@@ -59,15 +59,17 @@ const ListNFTPage = () => {
 
   useEffect(() => {
     setMounted(true)
-    fetchUserNFTs()
-  },[DynamicNFTContract, account])
+    if (DynamicNFTContract && account) {
+      fetchUserNFTs()
+    }
+  }, [DynamicNFTContract, account])
 
   if (!mounted) return null
 
   const handleSelectNFT = async (nft) => {
     setSelectedNft(nft)
     try {
-      const isListed = await DynamicNFTContract.methods.isTokenListed(nft.tokenId).call();
+      const isListed = await DynamicNFTContract.methods.isTokenListed(nft.tokenId).call()
       setIsListed(isListed)
     } catch (err) {
       setError('Error checking NFT listing status: ' + err.message)
@@ -77,11 +79,8 @@ const ListNFTPage = () => {
   const handleListNFT = async () => {
     setLoading(true)
     try {
-      if (!selectedNft) return;
-      const tx = await DynamicNFTContract.methods.listToken(selectedNft.tokenId,1).send(
-        { from: account }
-      );     
-      
+      if (!selectedNft) return
+      await DynamicNFTContract.methods.listToken(selectedNft.tokenId, 1).send({ from: account })
       setSuccess('NFT listed successfully!')
       setIsListed(true)
     } catch (err) {
@@ -94,10 +93,7 @@ const ListNFTPage = () => {
   const handleUnlistNFT = async () => {
     setLoading(true)
     try {
-      const tx = await DynamicNFTContract.methods.unlistToken(selectedNft.tokenId).send(
-        { from: account }
-      )
-    
+      await DynamicNFTContract.methods.unlistToken(selectedNft.tokenId).send({ from: account })
       setSuccess('NFT unlisted successfully!')
       setIsListed(false)
     } catch (err) {
@@ -106,7 +102,7 @@ const ListNFTPage = () => {
       setLoading(false)
     }
   }
-  
+
   return (
     <div className="flex flex-col min-h-screen bg-background dark:bg-gray-900 transition-colors duration-300">
       <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 dark:bg-gray-900/95 dark:border-gray-800">
@@ -142,7 +138,6 @@ const ListNFTPage = () => {
                 <CardHeader>
                   <CardTitle className="dark:text-white">
                     NFT #{formatTokenId(nft.tokenId)}
-                    
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -151,10 +146,6 @@ const ListNFTPage = () => {
                       src={nft.imageUrl}
                       alt={`NFT #${formatTokenId(nft.tokenId)}`}
                       className="object-cover w-full h-full"
-                      onError={(e) => {
-                        e.target.src = 'https://violet-defiant-kite-65.mypinata.cloud/ipfs/QmZdDAvqRJxENdcbLERhxBepfTqWM7y1DdDKxKiWTjctRt'
-                        e.target.onerror = null
-                      }}
                     />
                   </div>
                 </CardContent>
@@ -184,10 +175,6 @@ const ListNFTPage = () => {
                     src={selectedNft.imageUrl}
                     alt={`Selected NFT #${formatTokenId(selectedNft.tokenId)}`}
                     className="object-cover w-full h-full"
-                    onError={(e) => {
-                      e.target.src = 'https://violet-defiant-kite-65.mypinata.cloud/ipfs/QmZdDAvqRJxENdcbLERhxBepfTqWM7y1DdDKxKiWTjctRt'
-                      e.target.onerror = null
-                    }}
                   />
                 </div>
                 <p className="dark:text-gray-300">
@@ -222,6 +209,13 @@ const ListNFTPage = () => {
           <Alert variant="default" className="mt-6">
             <AlertTitle>Success</AlertTitle>
             <AlertDescription>{success}</AlertDescription>
+          </Alert>
+        )}
+
+        {error && (
+          <Alert variant="destructive" className="mt-6">
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
 
