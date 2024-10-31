@@ -17,6 +17,11 @@
 	},
 	{
 		"inputs": [],
+		"name": "ArithmeticError",
+		"type": "error"
+	},
+	{
+		"inputs": [],
 		"name": "CooldownActive",
 		"type": "error"
 	},
@@ -33,6 +38,16 @@
 	{
 		"inputs": [],
 		"name": "InvalidRate",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "InvalidTimeDecayFactor",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "InvalidVolumeMultiplier",
 		"type": "error"
 	},
 	{
@@ -269,6 +284,19 @@
 		"type": "function"
 	},
 	{
+		"inputs": [],
+		"name": "MAX_VOLUME_MULTIPLIER",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
 		"inputs": [
 			{
 				"internalType": "address",
@@ -314,6 +342,64 @@
 			}
 		],
 		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "lastSaleTimestamp",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "timeDecayFactor",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "currentRate",
+				"type": "uint256"
+			}
+		],
+		"name": "calculateTimeDecay",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "volume24h",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "volumeMultiplier",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "currentRate",
+				"type": "uint256"
+			}
+		],
+		"name": "calculateVolumeAdjustment",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "pure",
 		"type": "function"
 	},
 	{
@@ -538,6 +624,30 @@
 			}
 		],
 		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "a",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "b",
+				"type": "uint256"
+			}
+		],
+		"name": "safeMultiply",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "pure",
 		"type": "function"
 	},
 	{

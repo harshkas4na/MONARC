@@ -1,36 +1,32 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { useTheme } from 'next-themes'
-import { useRouter } from 'next/navigation'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
-import { Slider } from '@/components/ui/slider'
 import { useWeb3 } from '@/contexts/Web3Context'
-import { DYNAMICNFT_CONTRACT_ADDRESS } from '@/config/addresses'
-import { Upload, Sun, Moon, Loader2 } from 'lucide-react'
-import { ipfsHashToTokenId, tokenIdToIpfsHash } from '@/utils/ipfsHashConverter';
-import { uploadImageToIPFS } from '@/utils/ipfsUtils';
-import Image from 'next/image'
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
+import { Slider } from "@/components/ui/slider"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Upload, Loader2 } from 'lucide-react'
+import { uploadImageToIPFS } from '@/utils/ipfsUtils'
 
-// Global Royalty Rate Limits
-const globalMinRate = 500 // 5% minimum rate
-const globalMaxRate = 2000 // 20% maximum rate
+const globalMinRate = 500
+const globalMaxRate = 2000
 
-export default function CreateNFTPage() {
-  const { DynamicNFTContract, RoyaltyContract, account,IpfsHashStorageContract } = useWeb3()
+export default function NFTRoyaltyManager() {
+  const { DynamicNFTContract, RoyaltyContract, account, IpfsHashStorageContract } = useWeb3()
   const [image, setImage] = useState(null)
   const [ipfsHash, setIpfsHash] = useState('')
+  const [generatedTokenId, setGeneratedTokenId] = useState<number | null>(null)
   const [royalty, setRoyalty] = useState({
     baseRate: 1000,
     minRate: 500,
     maxRate: 2500,
     volumeMultiplier: 10,
-    timeDecayFactor: 86400,//1 day
+    timeDecayFactor: 86400,
     beneficiary: '',
     lastUpdateTime: 0,
     useMarketMetrics: true,
@@ -39,115 +35,142 @@ export default function CreateNFTPage() {
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
   const [uploadingImage, setUploadingImage] = useState(false)
-  const { theme, setTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
-  const router = useRouter()
-  const [isMinted, setIsMinted] = useState(false)
-  const [mintedTokenId, setMintedTokenId] = useState(null)
-  
-  const [previewImage, setPreviewImage] = useState("");
+  const [userNFTs, setUserNFTs] = useState([])
+  const [selectedNFT, setSelectedNFT] = useState(null)
+  const [previewImage, setPreviewImage] = useState("")
 
   useEffect(() => {
-    setMounted(true)
     if (account) {
       setRoyalty(prev => ({ ...prev, beneficiary: account }))
+      fetchUserNFTs()
     }
-  }, [DynamicNFTContract, RoyaltyContract, account])
+  }, [account])
 
-  if (!mounted) return null
+  const fetchUserNFTs = async () => {
+    if (DynamicNFTContract && account) {
+      try {
+        const balance = await DynamicNFTContract.methods.balanceOf(account).call()
+        const nfts = []
+        for (let i = 0; i < balance; i++) {
+          const tokenId = await DynamicNFTContract.methods.tokenOfOwnerByIndex(account, i).call()
+          const royaltyConfig = await RoyaltyContract.methods.getRoyaltyInfo(DynamicNFTContract.options.address, tokenId).call()
+          if (!royaltyConfig.baseRate) {
+            nfts.push({ tokenId, needsRoyaltyConfig: true })
+          }
+        }
+        setUserNFTs(nfts)
+      } catch (err) {
+        console.error('Error fetching user NFTs:', err)
+      }
+    }
+  }
 
   const handleImageUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+    const file = e.target.files[0]
+    if (!file) return
     
-    setImage(file);
-    setUploadingImage(true);
-    setError('');
+    setImage(file)
+    setUploadingImage(true)
+    setError('')
     
     try {
-      const { ipfsHash, url } = await uploadImageToIPFS(file);
-      
-      setIpfsHash(ipfsHash);
-      setPreviewImage(url);
-      setSuccess('Image uploaded successfully to IPFS!');
-      
+      const { ipfsHash, url } = await uploadImageToIPFS(file)
+      setIpfsHash(ipfsHash)
+      setPreviewImage(url)
+      setSuccess('Image uploaded successfully to IPFS!')
+      setGeneratedTokenId(null)
     } catch (err) {
-      console.error('Error uploading to IPFS:', err);
-      setError('Error uploading to IPFS: ' + err.message);
-      setPreviewImage('');
-      setIpfsHash('');
+      console.error('Error uploading to IPFS:', err)
+      setError('Error uploading to IPFS: ' + err.message)
+      setPreviewImage('')
+      setIpfsHash('')
     } finally {
-      setUploadingImage(false);
+      setUploadingImage(false)
     }
-  };
+  }
+
+  const handleGenerateTokenId = async () => {
+    if (!ipfsHash) {
+      setError('Please upload an image first to generate tokenId')
+      return
+    }
+    
+    setLoading(true)
+    setError('')
+    
+    try {
+      const tokenId = Number(await IpfsHashStorageContract.methods.getTotalIPFSHashes().call()) + 1
+      await IpfsHashStorageContract.methods.storeIPFSHash(ipfsHash).send({ from: account })
+      setGeneratedTokenId(tokenId)
+      setSuccess('TokenId generated successfully!')
+    } catch (err) {
+      setError('Error generating tokenId: ' + err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleMintNFT = async () => {
-    setLoading(true);
-    try {
-      if (!DynamicNFTContract) throw new Error('Contract not initialized');
-      
-      const tokenId = Number(await IpfsHashStorageContract.methods.getTotalIPFSHashes().call());
-      const tx2 = await IpfsHashStorageContract.methods.storeIPFSHash(ipfsHash).send({ from: account});
-      const tx = await DynamicNFTContract.methods.mint(account, tokenId).send({ from: account });
-      
-      setSuccess('NFT minted successfully!');
-      setIsMinted(true);
-      setMintedTokenId(tokenId);
-      
-      
-    } catch (err) {
-      setError('Error minting NFT: ' + err.message);
-    } finally {
-      setLoading(false);
+    if (!generatedTokenId) {
+      setError('Please generate tokenId first')
+      return
     }
-  };
+    
+    setLoading(true)
+    try {
+      await DynamicNFTContract.methods.mint(account, generatedTokenId).send({ from: account })
+      setSuccess('NFT minted successfully!')
+      await handleSetRoyalty(generatedTokenId)
+    } catch (err) {
+      setError('Error minting NFT: ' + err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
 
-  const handleSetRoyalty = async () => {
-    if (!isMinted) {
-      setError('Please mint the NFT before setting the royalty configuration.')
+  const handleSetRoyalty = async (tokenId = null) => {
+    if (!tokenId && !selectedNFT && !generatedTokenId) {
+      setError('Please select an NFT or generate a new one first.')
       return
     }
 
+    const targetTokenId = tokenId || selectedNFT || generatedTokenId
+
     setLoading(true)
     try {
-      if (!RoyaltyContract) throw new Error('Contract not initialized')
       const royaltyConfig = {
         ...royalty,
         baseRate: Math.floor(royalty.baseRate),
         minRate: Math.floor(royalty.minRate),
         maxRate: Math.floor(royalty.maxRate),
       }
-      const tx = await RoyaltyContract.methods.setRoyaltyConfig(DYNAMICNFT_CONTRACT_ADDRESS, mintedTokenId, royaltyConfig).send({ from: account })
+      await RoyaltyContract.methods.setRoyaltyConfig(DynamicNFTContract.options.address, targetTokenId, royaltyConfig).send({ from: account })
       setSuccess('Royalty configuration set successfully!')
+      fetchUserNFTs()
     } catch (err) {
       setError('Error setting royalty configuration: ' + err.message)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-background dark:bg-gray-900 transition-colors duration-300">
-      <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 dark:bg-gray-900/95 dark:border-gray-800">
-        <div className="container flex items-center justify-between h-16 px-4">
-          <h1 className="text-2xl font-bold dark:text-white">Create Your NFT</h1>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          >
-            {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-          </Button>
-        </div>
-      </header>
-
-      <main className="flex-1 container px-4 py-8">
-        <div className="grid gap-6 md:grid-cols-2 lg:gap-12">
-          <Card className="dark:bg-gray-800">
+    <div className="container mx-auto p-4">
+      <h1 className="text-3xl font-bold mb-6">NFT Royalty Manager</h1>
+      
+      <Tabs defaultValue="generate">
+        <TabsList className="mb-4">
+          <TabsTrigger value="generate">Generate New NFT</TabsTrigger>
+          <TabsTrigger value="existing">Manage Existing NFTs</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="generate">
+          <Card>
             <CardHeader>
-              <CardTitle className="dark:text-white">Upload Image</CardTitle>
+              <CardTitle>Generate New NFT</CardTitle>
+              <CardDescription>Upload an image, generate a token ID, and set royalties for a new NFT.</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
               <div className="flex items-center justify-center w-full">
                 <Label 
                   htmlFor="dropzone-file" 
@@ -187,122 +210,164 @@ export default function CreateNFTPage() {
                 </Label>
               </div>
               {ipfsHash && (
-                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                  IPFS Hash: {ipfsHash}
+                <div className="space-y-2">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    IPFS Hash: {ipfsHash}
+                  </p>
+                  <Button 
+                    onClick={handleGenerateTokenId} 
+                    disabled={loading}
+                    className="w-full"
+                  >
+                    {loading ? (
+                      <div className="flex items-center space-x-2">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Generating TokenId...</span>
+                      </div>
+                    ) : (
+                      'Generate TokenId'
+                    )}
+                  </Button>
+                </div>
+              )}
+              {generatedTokenId !== null && (
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Generated TokenId: {generatedTokenId}
                 </p>
               )}
             </CardContent>
-          </Card>
-
-          <Card className="dark:bg-gray-800">
-            <CardHeader>
-              <CardTitle className="dark:text-white">Set Royalty Configuration</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="baseRate" className="dark:text-gray-200">Base Royalty Rate</Label>
-                <Slider
-                  id="baseRate"
-                  min={globalMinRate}
-                  max={globalMaxRate}
-                  step={10}
-                  value={[royalty.baseRate]}
-                  onValueChange={(value) => setRoyalty({ ...royalty, baseRate: value[0] })}
-                />
-                <p className="text-sm text-gray-500 dark:text-gray-400">{(royalty.baseRate / 100).toFixed(2)}%</p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="minRate" className="dark:text-gray-200">Minimum Royalty Rate</Label>
-                <Slider
-                  id="minRate"
-                  min={globalMinRate}
-                  max={royalty.baseRate}
-                  step={10}
-                  value={[royalty.minRate]}
-                  onValueChange={(value) => setRoyalty({ ...royalty, minRate: value[0] })}
-                />
-                <p className="text-sm text-gray-500 dark:text-gray-400">{(royalty.minRate / 100).toFixed(2)}%</p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="maxRate" className="dark:text-gray-200">Maximum Royalty Rate</Label>
-                <Slider
-                  id="maxRate"
-                  min={royalty.baseRate}
-                  max={globalMaxRate}
-                  step={10}
-                  value={[royalty.maxRate]}
-                  onValueChange={(value) => setRoyalty({ ...royalty, maxRate: value[0] })}
-                />
-                <p className="text-sm text-gray-500 dark:text-gray-400">{(royalty.maxRate / 100).toFixed(2)}%</p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="beneficiary" className="dark:text-gray-200">Beneficiary Address</Label>
-                <Input
-                  id="beneficiary"
-                  value={royalty.beneficiary}
-                  onChange={(e) => setRoyalty({ ...royalty, beneficiary: e.target.value })}
-                  className="dark:bg-gray-700 dark:text-white"
-                />
-              </div>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="useMarketMetrics"
-                  checked={royalty.useMarketMetrics}
-                  onCheckedChange={(checked) => setRoyalty({ ...royalty, useMarketMetrics: checked })}
-                />
-                <Label htmlFor="useMarketMetrics" className="dark:text-gray-200">Use Market Metrics (Make your Royalty Dynamic with our Market Monitors)</Label>
-              </div>
-            </CardContent>
             <CardFooter>
-              <Button onClick={handleSetRoyalty} disabled={!isMinted || loading} className="w-full">
+              <Button onClick={handleMintNFT} disabled={!generatedTokenId || loading} className="w-full">
                 {loading ? (
                   <div className="flex items-center space-x-2">
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Processing...</span>
+                    <span>Minting NFT...</span>
                   </div>
                 ) : (
-                  'Set Royalty Configuration'
+                  'Mint NFT'
                 )}
               </Button>
             </CardFooter>
           </Card>
-        </div>
+        </TabsContent>
+        
+        <TabsContent value="existing">
+          <Card>
+            <CardHeader>
+              <CardTitle>Manage Existing NFTs</CardTitle>
+              <CardDescription>Set royalty configurations for your existing NFTs without royalty settings.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {userNFTs.length > 0 ? (
+                <div className="space-y-2">
+                  <Label htmlFor="nft-select">Select NFT</Label>
+                  <select
+                    id="nft-select"
+                    className="w-full p-2 border rounded"
+                    onChange={(e) => setSelectedNFT(e.target.value)}
+                    value={selectedNFT || ''}
+                  >
+                    <option value="">Select an NFT</option>
+                    {userNFTs.map((nft) => (
+                      <option key={nft.tokenId} value={nft.tokenId}>
+                        Token ID: {nft.tokenId}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <p>You don't have any NFTs without royalty configurations.</p>
+              )}
+            </CardContent>
+            <CardFooter>
+              <Button onClick={() => handleSetRoyalty()} disabled={!selectedNFT || loading} className="w-full">
+                {loading ? (
+                  <div className="flex items-center space-x-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Setting Royalty...</span>
+                  </div>
+                ) : (
+                  'Set Royalty for Selected NFT'
+                )}
+              </Button>
+            </CardFooter>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
-        {error && (
-          <Alert variant="destructive" className="mt-6">
-            <AlertTitle>Error</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-        {success && (
-          <Alert className="mt-6">
-            <AlertTitle>Success</AlertTitle>
-            <AlertDescription>{success}</AlertDescription>
-          </Alert>
-        )}
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>Royalty Configuration</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="baseRate" className="dark:text-gray-200">Base Royalty Rate</Label>
+            <Slider
+              id="baseRate"
+              min={globalMinRate}
+              max={globalMaxRate}
+              step={10}
+              value={[royalty.baseRate]}
+              onValueChange={(value) => setRoyalty({ ...royalty, baseRate: value[0] })}
+            />
+            <p className="text-sm text-gray-500 dark:text-gray-400">{(royalty.baseRate / 100).toFixed(2)}%</p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="minRate" className="dark:text-gray-200">Minimum Royalty Rate</Label>
+            <Slider
+              id="minRate"
+              min={globalMinRate}
+              max={royalty.baseRate}
+              step={10}
+              value={[royalty.minRate]}
+              onValueChange={(value) => setRoyalty({ ...royalty, minRate: value[0] })}
+            />
+            <p className="text-sm text-gray-500 dark:text-gray-400">{(royalty.minRate / 100).toFixed(2)}%</p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="maxRate" className="dark:text-gray-200">Maximum Royalty Rate</Label>
+            <Slider
+              id="maxRate"
+              min={royalty.baseRate}
+              max={globalMaxRate}
+              step={10}
+              value={[royalty.maxRate]}
+              onValueChange={(value) => setRoyalty({ ...royalty, maxRate:  value[0] })}
+            />
+            <p className="text-sm text-gray-500 dark:text-gray-400">{(royalty.maxRate / 100).toFixed(2)}%</p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="beneficiary" className="dark:text-gray-200">Beneficiary Address</Label>
+            <Input
+              id="beneficiary"
+              value={royalty.beneficiary}
+              onChange={(e) => setRoyalty({ ...royalty, beneficiary: e.target.value })}
+              className="dark:bg-gray-700 dark:text-white"
+            />
+          </div>
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="useMarketMetrics"
+              checked={royalty.useMarketMetrics}
+              onCheckedChange={(checked) => setRoyalty({ ...royalty, useMarketMetrics: checked })}
+            />
+            <Label htmlFor="useMarketMetrics" className="dark:text-gray-200">Use Market Metrics (Make your Royalty Dynamic with our Market Monitors)</Label>
+          </div>
+        </CardContent>
+      </Card>
 
-        <div className="flex justify-center mt-12 space-x-4">
-          <Button 
-            size="lg" 
-            onClick={handleMintNFT} 
-            disabled={loading || !ipfsHash || isMinted || uploadingImage}
-          >
-            {loading ? (
-              <div className="flex items-center space-x-2">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Minting...</span>
-              </div>
-            ) : isMinted ? (
-              'NFT Minted'
-            ) : (
-              'Mint NFT'
-            )}
-          </Button>
-          <Button size="lg" onClick={() => router.push('/listNFTs')} variant="outline">
-            List Your NFTs
-          </Button>
-        </div>
-      </main>
+      {error && (
+        <Alert variant="destructive" className="mt-6">
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+      {success && (
+        <Alert className="mt-6">
+          <AlertTitle>Success</AlertTitle>
+          <AlertDescription>{success}</AlertDescription>
+        </Alert>
+      )}
     </div>
   )
 }

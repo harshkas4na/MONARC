@@ -10,17 +10,19 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DollarSign, AlertCircle, Info } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Input } from "@/components/ui/input"
 
 export default function BuyNFT({ params }) {
   const id = React.use(params).id
   const router = useRouter()
-  const { DynamicNFTContract, WNFTContract, ReactContract, account, web3, selectedNetwork } = useWeb3()
+  const { DynamicNFTContract, WNFTContract, ReactContract, account, web3, selectedNetwork,IpfsHashStorageContract } = useWeb3()
   const [nft, setNft] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [transactionPending, setTransactionPending] = useState(false)
   const [userBalance, setUserBalance] = useState('0')
   const [isApproved, setIsApproved] = useState(false)
+  const [reactToBuy, setReactToBuy] = useState('0')
 
   const fetchNFTDetails = useCallback(async () => {
     setLoading(true)
@@ -32,7 +34,7 @@ export default function BuyNFT({ params }) {
         const owner = await DynamicNFTContract.methods.ownerOf(id).call()
         const isListed = await DynamicNFTContract.methods.isTokenListed(id).call()
         const listingPrice = await DynamicNFTContract.methods.tokenListingPrice(id).call()
-        
+        const ipfsHash = await IpfsHashStorageContract.methods.getIPFSHash(id).call();
         nftDetails = {
           id,
           title: `NFT #${id}`,
@@ -40,19 +42,19 @@ export default function BuyNFT({ params }) {
           priceSymbol: 'ETH',
           owner,
           isListed,
-          image: `/placeholder.svg?height=400&width=400&text=NFT%20${id}`
+          image: `${process.env.NEXT_PUBLIC_GATEWAY_URL}/ipfs/${ipfsHash}`
         }
       } else if (selectedNetwork === 'KOPLI') {
         const listing = await WNFTContract.methods.getListing(id).call()
-        
+        const ipfsHash="QmZdDAvqRJxENdcbLERhxBepfTqWM7y1DdDKxKiWTjctRt";
         nftDetails = {
           id,
           title: `NFT #${id}`,
-          price: listing.price,
+          price: web3.utils.fromWei(listing.price, 'ether'),
           priceSymbol: 'REACT',
           owner: listing.seller,
-          isListed: true,
-          image: `/placeholder.svg?height=400&width=400&text=NFT%20${id}`
+          isListed: listing.isActive,
+          image: `${process.env.NEXT_PUBLIC_GATEWAY_URL}/ipfs/${ipfsHash}`
         }
       } else {
         throw new Error("Unsupported network")
@@ -128,7 +130,7 @@ export default function BuyNFT({ params }) {
       if (selectedNetwork === 'SEPOLIA') {
         await DynamicNFTContract.methods.purchase(nft.id).send({
           from: account,
-          value: web3.utils.toWei(nft.price, 'ether')
+          value: web3?.utils.toWei(nft.price, 'ether')
         })
       } else if (selectedNetwork === 'KOPLI') {
         await WNFTContract.methods.lockTokens(nft.id).send({ from: account })
@@ -139,6 +141,25 @@ export default function BuyNFT({ params }) {
     } catch (err) {
       console.error("Error during purchase:", err)
       setError("Transaction failed. Please try again.")
+    } finally {
+      setTransactionPending(false)
+    }
+  }
+
+  const handleBuyReact = async () => {
+    setTransactionPending(true)
+    setError(null)
+    try {
+      const amountInWei = web3.utils.toWei(reactToBuy, 'ether')
+      await ReactContract.methods.mint().send({
+        from: account,
+        value: amountInWei
+      })
+      await fetchUserBalance()
+      setReactToBuy('0')
+    } catch (err) {
+      console.error("Error buying REACT:", err)
+      setError("Failed to buy REACT. Please try again.")
     } finally {
       setTransactionPending(false)
     }
@@ -174,6 +195,7 @@ export default function BuyNFT({ params }) {
       </div>
     )
   }
+  console.log(nft);
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -202,14 +224,30 @@ export default function BuyNFT({ params }) {
                 <Label>Your Balance</Label>
                 <div>{parseFloat(userBalance).toFixed(4)} {nft?.priceSymbol}</div>
               </div>
-              {parseFloat(userBalance) < parseFloat(nft?.price || '0') && (
-                <Alert variant="warning">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertTitle>Insufficient Balance</AlertTitle>
-                  <AlertDescription>
-                    You don't have enough {nft?.priceSymbol} to purchase this NFT.
-                  </AlertDescription>
-                </Alert>
+              {parseFloat(userBalance) < parseFloat(nft?.price || '0') && selectedNetwork === 'KOPLI' && (
+                <div className="space-y-2">
+                  <Alert variant="warning">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Insufficient Balance</AlertTitle>
+                    <AlertDescription>
+                      You don't have enough REACT to purchase this NFT. You can buy more REACT below.
+                    </AlertDescription>
+                  </Alert>
+                  <div className="flex items-center space-x-2">
+                    <Input
+                      type="number"
+                      value={reactToBuy}
+                      onChange={(e) => setReactToBuy(e.target.value)}
+                      placeholder="Amount of REACT to buy"
+                    />
+                    <Button onClick={handleBuyReact} disabled={transactionPending || parseFloat(reactToBuy) <= 0}>
+                      Buy REACT
+                    </Button>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Rate: 0.1 ETH = 1,000,000 REACT
+                  </p>
+                </div>
               )}
             </div>
           </div>

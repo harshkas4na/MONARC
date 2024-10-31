@@ -20,7 +20,7 @@ import { formatTokenId } from '@/utils/ipfsHashConverter'
 const formatAddress = (address: string) => `${address.slice(0, 6)}...${address.slice(-4)}`
 
 export default function Marketplace() {
-  const { DynamicNFTContract, RoyaltyContract, MonitorContract, ReactContract, WNFTContract, account, web3, selectedNetwork } = useWeb3()
+  const { DynamicNFTContract, RoyaltyContract, MonitorContract, ReactContract, WNFTContract, account, web3, selectedNetwork,IpfsHashStorageContract } = useWeb3()
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [priceRange, setPriceRange] = useState([0, 2])
   const [nfts, setNfts] = useState([])
@@ -49,6 +49,7 @@ export default function Marketplace() {
             const owner = await DynamicNFTContract.methods.ownerOf(tokenId).call()
             const royaltyInfo = await RoyaltyContract.methods.getRoyaltyInfo(DynamicNFTContract.options.address, tokenId).call()
             const listingPrice = await DynamicNFTContract.methods.tokenListingPrice(tokenId).call()
+            const ipfshash= await IpfsHashStorageContract.methods.getIPFSHash(tokenId).call();
             if (owner !== DYNAMICNFT_CONTRACT_ADDRESS) {
               fetchedNFTs.push({
                 id: tokenId,
@@ -58,28 +59,13 @@ export default function Marketplace() {
                 royalty: royaltyInfo.beneficiary !== '0x0000000000000000000000000000000000000000' ? `${Number(royaltyInfo.baseRate) / 100}%` : 'N/A',
                 creator: royaltyInfo.beneficiary,
                 owner: owner,
-                image: `/placeholder.svg?height=400&width=400&text=NFT%20${tokenId}`,
+                image: `${process.env.NEXT_PUBLIC_GATEWAY_URL}/ipfs/${ipfshash}`,
                 network: 'SEPOLIA'
               })
             }
           }
         }
-      } else {
-        const listedNFTs = await WNFTContract.methods.getListedNFTs().call()
-        for (const nft of listedNFTs) {
-          fetchedNFTs.push({
-            id: nft.tokenId,
-            title: `NFT #${formatTokenId(nft.tokenId)}`,
-            price: web3.utils.fromWei(nft.price, 'ether'),
-            priceSymbol: 'REACT',
-            royalty: 'N/A',
-            creator: 'N/A',
-            owner: nft.owner,
-            image: `/placeholder.svg?height=400&width=400&text=NFT%20${nft.tokenId}`,
-            network: 'KOPLI'
-          })
-        }
-      }
+      } 
       setNfts(fetchedNFTs)
       setFilteredNfts(fetchedNFTs)
       
