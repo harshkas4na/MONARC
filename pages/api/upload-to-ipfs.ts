@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 import formidable from 'formidable'
 import fetch from 'node-fetch'
 import fs from 'fs'
+import FormData from 'form-data'
 
 export const config = {
   api: {
@@ -20,19 +21,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(500).json({ error: 'Error parsing form data' })
     }
 
-    const file = files.file as formidable.File
-    if (!file) {
+    const fileArray = files.file as formidable.File[] | undefined
+    if (!fileArray || fileArray.length === 0) {
       return res.status(400).json({ error: 'No file provided' })
     }
 
+    const file = fileArray[0] // We'll process only the first file
+
     try {
+      const fileBuffer = fs.readFileSync(file.filepath)
       const formData = new FormData()
-      formData.append('file', fs.createReadStream(file.filepath))
+      formData.append('file', fileBuffer, {
+        filename: file.originalFilename || 'file',
+        contentType: file.mimetype || 'application/octet-stream',
+      })
 
       const response = await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${process.env.JWT_SECRET_ACCESS_TOKEN}`,
+          ...formData.getHeaders(),
         },
         body: formData,
       })
