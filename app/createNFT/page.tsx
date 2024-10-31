@@ -11,6 +11,7 @@ import { Slider } from "@/components/ui/slider"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Upload, Loader2 } from 'lucide-react'
 import { uploadImageToIPFS } from '@/utils/ipfsUtils'
+import { useRouter } from 'next/navigation'
 
 const globalMinRate = 500
 const globalMaxRate = 2000
@@ -36,6 +37,8 @@ export default function NFTRoyaltyManager() {
   const [userNFTs, setUserNFTs] = useState<Array<{ tokenId: string, needsRoyaltyConfig: boolean }>>([])
   const [selectedNFT, setSelectedNFT] = useState<string | null>(null)
   const [previewImage, setPreviewImage] = useState("")
+
+  const router = useRouter();
 
   const fetchUserNFTs = useCallback(async () => {
     if (DynamicNFTContract && account) {
@@ -170,11 +173,15 @@ export default function NFTRoyaltyManager() {
       <h1 className="text-3xl font-bold mb-6">NFT Royalty Manager</h1>
       
       <Tabs defaultValue="generate">
+        <div className='flex items-center mb-8 justify-between'>
         <TabsList className="mb-4">
           <TabsTrigger value="generate">Generate New NFT</TabsTrigger>
           <TabsTrigger value="existing">Manage Existing NFTs</TabsTrigger>
         </TabsList>
-        
+        <div className="mb-6">
+            <Button onClick={() => router.push('/listNFTs')}>List Your NFTs</Button>
+        </div>
+        </div>
         <TabsContent value="generate">
           <Card>
             <CardHeader>

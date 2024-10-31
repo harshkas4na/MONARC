@@ -29,7 +29,7 @@ interface WNFTListing {
 }
 
 interface BuyNFTClientProps {
-  id: string;
+  id: number;
 }
 
 export default function BuyNFTClient({ id }: BuyNFTClientProps) {
@@ -57,7 +57,7 @@ export default function BuyNFTClient({ id }: BuyNFTClientProps) {
         const listingPrice = await DynamicNFTContract.methods.tokenListingPrice(id).call()
         const ipfsHash = await IpfsHashStorageContract.methods.getIPFSHash(id).call()
         nftDetails = {
-          id,
+          id:String(id),
           title: `NFT #${id}`,
           price: web3.utils.fromWei(listingPrice, 'ether'),
           priceSymbol: 'ETH',
@@ -69,7 +69,7 @@ export default function BuyNFTClient({ id }: BuyNFTClientProps) {
         const listing: WNFTListing = await WNFTContract.methods.getListing(id).call()
         const ipfsHash = "QmZdDAvqRJxENdcbLERhxBepfTqWM7y1DdDKxKiWTjctRt"
         nftDetails = {
-          id,
+          id:String(id),
           title: `NFT #${id}`,
           price: web3.utils.fromWei(listing.price, 'ether'),
           priceSymbol: 'REACT',

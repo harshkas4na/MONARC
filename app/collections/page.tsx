@@ -117,7 +117,7 @@ export default function Marketplace() {
   }, [DynamicNFTContract, RoyaltyContract, IpfsHashStorageContract, web3, selectedNetwork])
 
   const handleBuyNow = (nft: NFT) => {
-    router.push(`/buyNFT/${nft.id}?network=${nft.network}`)
+    router.push(`/buyNFT/${nft.id}`)
   }
 
   const handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {

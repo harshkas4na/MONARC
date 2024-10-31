@@ -1,4 +1,4 @@
-export const uploadImageToIPFS = async (file) => {
+export const uploadImageToIPFS = async (file:File) => {
   try {
     // Validate file
     if (!file) {

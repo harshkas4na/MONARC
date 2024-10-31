@@ -124,7 +124,7 @@ export default function Dashboard() {
         })
       }
     }
-    return transactions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 5)
+    return transactions.sort((a, b) => Number(new Date(b.timestamp)) - Number(new Date(a.timestamp))).slice(0, 5)
   }, [MonitorContract, RoyaltyContract])
 
   useEffect(() => {
