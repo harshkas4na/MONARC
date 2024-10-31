@@ -152,17 +152,19 @@ export default function BuyNFT() {
   }
 
   const handlePurchase = async () => {
-    if (!web3 || !account || !nft || !DynamicNFTContract || !WNFTContract) return
+    if (!web3 || !account || !nft ) return
 
     setTransactionPending(true)
     setError(null)
     try {
       if (selectedNetwork === 'SEPOLIA') {
+        if(!DynamicNFTContract) return;
         await DynamicNFTContract.methods.purchase(nft.id).send({
           from: account,
           value: web3.utils.toWei(nft.price, 'ether')
         })
       } else if (selectedNetwork === 'KOPLI') {
+        if(!WNFTContract) return;
         await WNFTContract.methods.lockTokens(nft.id).send({ from: account })
       } else {
         throw new Error("Unsupported network")
