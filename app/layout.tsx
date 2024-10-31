@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import Navigation from "@/components/navigation";
-import { Providers } from "./providers";
+import { ThemeProvider } from "./providers";
 import { Web3Provider } from "@/contexts/Web3Context";
 
 const geistSans = localFont({
@@ -31,12 +31,17 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <Providers>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
         <Web3Provider>
           <Navigation/>
             {children}
         </Web3Provider>
-        </Providers>
+        </ThemeProvider>
 
       </body>
     </html>

@@ -6,10 +6,24 @@ import { useTheme } from 'next-themes'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { DollarSign, LineChart, PieChart, Users, Sun, Moon } from 'lucide-react'
 import { useWeb3 } from '@/contexts/Web3Context'
 import { DYNAMICNFT_CONTRACT_ADDRESS } from '@/config/addresses'
+
+type transactions= {
+  tokenId: number;
+  price: number;
+  royalty: number;
+  timestamp: string;
+}
+
+type nfts= {
+  id: any;
+  owner: any;
+  royaltyRate: number;
+  royaltyAmount: number;
+  isListed: boolean;
+}
 
 export default function Dashboard() {
   const [mounted, setMounted] = useState(false)
@@ -17,28 +31,26 @@ export default function Dashboard() {
   const router = useRouter()
   const { DynamicNFTContract, RoyaltyContract, MonitorContract, account, selectedNetwork } = useWeb3()
 
-  const [creatorNFTs, setCreatorNFTs] = useState([])
+  const [creatorNFTs, setCreatorNFTs] = useState<nfts[]>([])
   const [totalRevenue, setTotalRevenue] = useState(0)
   const [averageRoyaltyRate, setAverageRoyaltyRate] = useState(0)
-  const [recentTransactions, setRecentTransactions] = useState([])
+  const [recentTransactions, setRecentTransactions] = useState<transactions[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
 
   const fetchCreatorNFTs = useCallback(async () => {
     if (!DynamicNFTContract || !RoyaltyContract || !MonitorContract || !account) {
-      setError("Web3 not initialized. Please connect your wallet.")
+      console.error("Web3 not initialized. Please connect your wallet.")
       setLoading(false)
       return
     }
 
     if (selectedNetwork !== 'SEPOLIA') {
-      setError("Please switch to the Sepolia network to view your creator dashboard.")
+      console.error("Please switch to the Sepolia network to view your creator dashboard.")
       setLoading(false)
       return
     }
 
     setLoading(true)
-    setError(null)
     try {
       const totalSupply = await DynamicNFTContract.methods.totalSupply().call()
       const nfts = []
@@ -79,13 +91,12 @@ export default function Dashboard() {
 
     } catch (error) {
       console.error("Error fetching creator NFTs:", error)
-      setError("Failed to fetch creator NFTs. Please try again later.")
     } finally {
       setLoading(false)
     }
   }, [DynamicNFTContract, RoyaltyContract, MonitorContract, account, selectedNetwork])
 
-  const calculateTotalRevenue = useCallback(async (nfts) => {
+  const calculateTotalRevenue = useCallback(async (nfts:any) => {
     let totalRevenue = 0
     for (const nft of nfts) {
       const priceHistory = await MonitorContract.methods.getPriceHistory(DYNAMICNFT_CONTRACT_ADDRESS, nft.id).call()
@@ -98,7 +109,7 @@ export default function Dashboard() {
     return totalRevenue / 1e18 // Convert from wei to ETH
   }, [MonitorContract, DynamicNFTContract, RoyaltyContract])
 
-  const fetchRecentTransactions = useCallback(async (nfts) => {
+  const fetchRecentTransactions = useCallback(async (nfts:any) => {
     const transactions = []
     for (const nft of nfts) {
       const priceHistory = await MonitorContract.methods.getPriceHistory(DYNAMICNFT_CONTRACT_ADDRESS, nft.id).call()
@@ -125,6 +136,24 @@ export default function Dashboard() {
 
   if (!mounted) return null
 
+  if (selectedNetwork !== 'SEPOLIA') {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background dark:bg-gray-900">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-center text-red-500">Wrong Network</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-center mb-4">Please switch to the Sepolia network to view your creator dashboard.</p>
+            <Button className="w-full" onClick={() => window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0xaa36a7' }]})}>
+              Switch to Sepolia
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col min-h-screen bg-gray-100 dark:bg-gray-900 transition-colors duration-300">
       <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 dark:bg-gray-900/95 dark:border-gray-800">
@@ -146,11 +175,6 @@ export default function Dashboard() {
             <div className="flex justify-center items-center h-64">
               <p className="text-lg dark:text-white">Loading dashboard data...</p>
             </div>
-          ) : error ? (
-            <Alert variant="destructive">
-              <AlertTitle>Error</AlertTitle>
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
           ) : creatorNFTs.length === 0 ? (
             <Card className="mb-8">
               <CardContent className="pt-6">
@@ -218,7 +242,7 @@ export default function Dashboard() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {creatorNFTs.map((nft) => (
+                      {creatorNFTs.map((nft:any) => (
                         <TableRow key={nft.id}>
                           <TableCell>{nft.id}</TableCell>
                           <TableCell>{nft.owner}</TableCell>
@@ -247,7 +271,7 @@ export default function Dashboard() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {recentTransactions.map((tx, index) => (
+                      {recentTransactions.map((tx:any, index) => (
                         <TableRow key={index}>
                           <TableCell>{tx.tokenId}</TableCell>
                           <TableCell>{tx.price.toFixed(4)} ETH</TableCell>

@@ -1,106 +1,120 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useTheme } from 'next-themes'
-import { ethers } from 'ethers'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useWeb3 } from '@/contexts/Web3Context'
 import { DYNAMICNFT_CONTRACT_ADDRESS } from '@/config/addresses'
-import { Skeleton } from '@/components/ui/skeleton'
 import { formatTokenId } from '@/utils/ipfsHashConverter'
 
 const ListNFTPage = () => {
-  const [nfts, setNfts] = useState([])
-  const [selectedNft, setSelectedNft] = useState(null)
+  const [nfts, setNfts] = useState<Array<{ tokenId: string; imageUrl: string }>>([])
+  const [selectedNft, setSelectedNft] = useState<{ tokenId: string; imageUrl: string } | null>(null)
   const [isListed, setIsListed] = useState(false)
-  const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
-  const { DynamicNFTContract, account, IpfsHashStorageContract } = useWeb3()
+  const { DynamicNFTContract, account, IpfsHashStorageContract, selectedNetwork } = useWeb3()
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
 
-  const getImageUrl = async (tokenId: bigint) => {
+  const getImageUrl = useCallback(async (tokenId: string) => {
     try {
-      
       const ipfsHash = await IpfsHashStorageContract.methods.getIPFSHash(Number(tokenId)).call()
-      console.log(ipfsHash)
       return `${process.env.NEXT_PUBLIC_GATEWAY_URL}/ipfs/${ipfsHash}`
-      
     } catch (err) {
       console.error('Error converting tokenId to IPFS hash:', err)
       return ''
     }
-  }
+  }, [IpfsHashStorageContract])
 
-  const fetchUserNFTs = async () => {
+  const fetchUserNFTs = useCallback(async () => {
+    if (!DynamicNFTContract || !account) return
+
     try {
       setLoading(true)
       const balance = Number(await DynamicNFTContract.methods.balanceOf(account).call())
       const userNftsPromises = Array(balance).fill(0).map(async (_, i) => {
         const tokenId = await DynamicNFTContract.methods.tokenOfOwnerByIndex(account, i).call()
-        const imageUrl = await getImageUrl(tokenId)
+        const imageUrl = await getImageUrl(tokenId.toString())
         return { 
           tokenId: tokenId.toString(), 
-          imageUrl,
-          tokenURI: imageUrl // Keep tokenURI for backwards compatibility
+          imageUrl
         }
       })
       const userNfts = await Promise.all(userNftsPromises)
       setNfts(userNfts)
     } catch (err) {
-      setError('Error fetching user NFTs: ' + err.message)
+      console.error('Error fetching user NFTs:', err)
     } finally {
       setLoading(false)
     }
-  }
+  }, [DynamicNFTContract, account, getImageUrl])
 
   useEffect(() => {
     setMounted(true)
-    if (DynamicNFTContract && account) {
+    if (DynamicNFTContract && account && selectedNetwork === 'SEPOLIA') {
       fetchUserNFTs()
     }
-  }, [DynamicNFTContract, account])
+  }, [DynamicNFTContract, account, selectedNetwork, fetchUserNFTs])
 
-  if (!mounted) return null
-
-  const handleSelectNFT = async (nft) => {
+  const handleSelectNFT = useCallback(async (nft: { tokenId: string; imageUrl: string }) => {
     setSelectedNft(nft)
     try {
       const isListed = await DynamicNFTContract.methods.isTokenListed(nft.tokenId).call()
       setIsListed(isListed)
     } catch (err) {
-      setError('Error checking NFT listing status: ' + err.message)
+      console.error('Error checking NFT listing status:', err)
     }
-  }
+  }, [DynamicNFTContract])
 
-  const handleListNFT = async () => {
+  const handleListNFT = useCallback(async () => {
+    if (!selectedNft) return
     setLoading(true)
     try {
-      if (!selectedNft) return
       await DynamicNFTContract.methods.listToken(selectedNft.tokenId, 1).send({ from: account })
       setSuccess('NFT listed successfully!')
       setIsListed(true)
     } catch (err) {
-      setError('Error listing NFT: ' + err.message)
+      console.error('Error listing NFT:', err)
     } finally {
       setLoading(false)
     }
-  }
+  }, [DynamicNFTContract, selectedNft, account])
 
-  const handleUnlistNFT = async () => {
+  const handleUnlistNFT = useCallback(async () => {
+    if (!selectedNft) return
     setLoading(true)
     try {
       await DynamicNFTContract.methods.unlistToken(selectedNft.tokenId).send({ from: account })
       setSuccess('NFT unlisted successfully!')
       setIsListed(false)
     } catch (err) {
-      setError('Error unlisting NFT: ' + err.message)
+      console.error('Error unlisting NFT:', err)
     } finally {
       setLoading(false)
     }
+  }, [DynamicNFTContract, selectedNft, account])
+
+  if (!mounted) return null
+
+  if (selectedNetwork !== 'SEPOLIA') {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background dark:bg-gray-900">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-center text-red-500">Wrong Network</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-center mb-4">Please switch to the Sepolia network to list or unlist your NFTs.</p>
+            <Button className="w-full" onClick={() => window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0xaa36a7' }]})}>
+              Switch to Sepolia
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
@@ -206,17 +220,9 @@ const ListNFTPage = () => {
         )}
 
         {success && (
-          <Alert variant="default" className="mt-6">
-            <AlertTitle>Success</AlertTitle>
-            <AlertDescription>{success}</AlertDescription>
-          </Alert>
-        )}
-
-        {error && (
-          <Alert variant="destructive" className="mt-6">
-            <AlertTitle>Error</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
+          <div className="mt-6 p-4 bg-green-100 dark:bg-green-800 text-green-700 dark:text-green-200 rounded-md">
+            {success}
+          </div>
         )}
 
         <Card className="mt-8 dark:bg-gray-800">

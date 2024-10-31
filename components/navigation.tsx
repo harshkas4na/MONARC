@@ -27,6 +27,7 @@ import MONITOR_ABI from '@/config/abi/Monitor_ABI.json';
 import WNFT_ABI from '@/config/abi/WNFT_ABI.json';
 import REACT_ABI from '@/config/abi/React_ABI.json';
 import IPFS_HASH_STORAGE_ABI from '@/config/abi/IpfsHash_Storage_ABI.json';
+import { ThemeToggle } from './ThemeToggle';
 
 
 interface NetworkConfig {
@@ -313,10 +314,11 @@ export default function Navigation() {
                 className="h-9 md:w-[300px] text-black dark:text-white dark:bg-gray-800 lg:w-[300px]"
               />
             </div>
-            <Button size="icon" variant="ghost" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+            {/* <Button size="icon" variant="ghost" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
               {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
               <span className="sr-only">Toggle theme</span>
-            </Button>
+            </Button> */}
+            <ThemeToggle />
             <Button size="icon" variant="ghost">
               <Link href="/settings">
               <Settings className="h-4 w-4" />

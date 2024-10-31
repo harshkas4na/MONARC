@@ -1,11 +1,10 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useWeb3 } from '@/contexts/Web3Context'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Slider } from "@/components/ui/slider"
@@ -17,8 +16,8 @@ const globalMinRate = 500
 const globalMaxRate = 2000
 
 export default function NFTRoyaltyManager() {
-  const { DynamicNFTContract, RoyaltyContract, account, IpfsHashStorageContract } = useWeb3()
-  const [image, setImage] = useState(null)
+  const { DynamicNFTContract, RoyaltyContract, account, IpfsHashStorageContract, selectedNetwork } = useWeb3()
+  const [image, setImage] = useState<File | null>(null)
   const [ipfsHash, setIpfsHash] = useState('')
   const [generatedTokenId, setGeneratedTokenId] = useState<number | null>(null)
   const [royalty, setRoyalty] = useState({
@@ -31,22 +30,14 @@ export default function NFTRoyaltyManager() {
     lastUpdateTime: 0,
     useMarketMetrics: true,
   })
-  const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
   const [uploadingImage, setUploadingImage] = useState(false)
-  const [userNFTs, setUserNFTs] = useState([])
-  const [selectedNFT, setSelectedNFT] = useState(null)
+  const [userNFTs, setUserNFTs] = useState<Array<{ tokenId: string, needsRoyaltyConfig: boolean }>>([])
+  const [selectedNFT, setSelectedNFT] = useState<string | null>(null)
   const [previewImage, setPreviewImage] = useState("")
 
-  useEffect(() => {
-    if (account) {
-      setRoyalty(prev => ({ ...prev, beneficiary: account }))
-      fetchUserNFTs()
-    }
-  }, [account])
-
-  const fetchUserNFTs = async () => {
+  const fetchUserNFTs = useCallback(async () => {
     if (DynamicNFTContract && account) {
       try {
         const balance = await DynamicNFTContract.methods.balanceOf(account).call()
@@ -63,15 +54,21 @@ export default function NFTRoyaltyManager() {
         console.error('Error fetching user NFTs:', err)
       }
     }
-  }
+  }, [DynamicNFTContract, RoyaltyContract, account])
 
-  const handleImageUpload = async (e) => {
-    const file = e.target.files[0]
+  useEffect(() => {
+    if (account) {
+      setRoyalty(prev => ({ ...prev, beneficiary: account }))
+      fetchUserNFTs()
+    }
+  }, [account, fetchUserNFTs])
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
     if (!file) return
     
     setImage(file)
     setUploadingImage(true)
-    setError('')
     
     try {
       const { ipfsHash, url } = await uploadImageToIPFS(file)
@@ -81,9 +78,6 @@ export default function NFTRoyaltyManager() {
       setGeneratedTokenId(null)
     } catch (err) {
       console.error('Error uploading to IPFS:', err)
-      setError('Error uploading to IPFS: ' + err.message)
-      setPreviewImage('')
-      setIpfsHash('')
     } finally {
       setUploadingImage(false)
     }
@@ -91,12 +85,11 @@ export default function NFTRoyaltyManager() {
 
   const handleGenerateTokenId = async () => {
     if (!ipfsHash) {
-      setError('Please upload an image first to generate tokenId')
+      console.error('Please upload an image first to generate tokenId')
       return
     }
     
     setLoading(true)
-    setError('')
     
     try {
       const tokenId = Number(await IpfsHashStorageContract.methods.getTotalIPFSHashes().call()) + 1
@@ -104,7 +97,7 @@ export default function NFTRoyaltyManager() {
       setGeneratedTokenId(tokenId)
       setSuccess('TokenId generated successfully!')
     } catch (err) {
-      setError('Error generating tokenId: ' + err.message)
+      console.error('Error generating tokenId:', err)
     } finally {
       setLoading(false)
     }
@@ -112,7 +105,7 @@ export default function NFTRoyaltyManager() {
 
   const handleMintNFT = async () => {
     if (!generatedTokenId) {
-      setError('Please generate tokenId first')
+      console.error('Please generate tokenId first')
       return
     }
     
@@ -122,15 +115,15 @@ export default function NFTRoyaltyManager() {
       setSuccess('NFT minted successfully!')
       await handleSetRoyalty(generatedTokenId)
     } catch (err) {
-      setError('Error minting NFT: ' + err.message)
+      console.error('Error minting NFT:', err)
     } finally {
       setLoading(false)
     }
   }
 
-  const handleSetRoyalty = async (tokenId = null) => {
+  const handleSetRoyalty = async (tokenId: number | null = null) => {
     if (!tokenId && !selectedNFT && !generatedTokenId) {
-      setError('Please select an NFT or generate a new one first.')
+      console.error('Please select an NFT or generate a new one first.')
       return
     }
 
@@ -148,10 +141,28 @@ export default function NFTRoyaltyManager() {
       setSuccess('Royalty configuration set successfully!')
       fetchUserNFTs()
     } catch (err) {
-      setError('Error setting royalty configuration: ' + err.message)
+      console.error('Error setting royalty configuration:', err)
     } finally {
       setLoading(false)
     }
+  }
+
+  if (selectedNetwork !== 'SEPOLIA') {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background dark:bg-gray-900">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-center text-red-500">Wrong Network</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-center mb-4">Please switch to the Sepolia network to use the NFT Royalty Manager.</p>
+            <Button className="w-full" onClick={() => window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0xaa36a7' }]})}>
+              Switch to Sepolia
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
@@ -322,7 +333,7 @@ export default function NFTRoyaltyManager() {
               value={[royalty.minRate]}
               onValueChange={(value) => setRoyalty({ ...royalty, minRate: value[0] })}
             />
-            <p className="text-sm text-gray-500 dark:text-gray-400">{(royalty.minRate / 100).toFixed(2)}%</p>
+            <p className="text-sm text-gray-500  dark:text-gray-400">{(royalty.minRate / 100).toFixed(2)}%</p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="maxRate" className="dark:text-gray-200">Maximum Royalty Rate</Label>
@@ -356,17 +367,10 @@ export default function NFTRoyaltyManager() {
         </CardContent>
       </Card>
 
-      {error && (
-        <Alert variant="destructive" className="mt-6">
-          <AlertTitle>Error</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
       {success && (
-        <Alert className="mt-6">
-          <AlertTitle>Success</AlertTitle>
-          <AlertDescription>{success}</AlertDescription>
-        </Alert>
+        <div className="mt-6 p-4 bg-green-100 dark:bg-green-800 text-green-700 dark:text-green-200 rounded-md">
+          {success}
+        </div>
       )}
     </div>
   )

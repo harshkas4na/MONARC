@@ -10,36 +10,55 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { ChevronDown, Grid, List, Moon, Search, Sun, Info } from 'lucide-react'
 import { useWeb3 } from '@/contexts/Web3Context'
-import { DYNAMICNFT_CONTRACT_ADDRESS, REACT_CONTRACT_ADDRESS, NFT_MARKETPLACE_ADDRESS } from '@/config/addresses'
+import { DYNAMICNFT_CONTRACT_ADDRESS } from '@/config/addresses'
 import { formatTokenId } from '@/utils/ipfsHashConverter'
 
 const formatAddress = (address: string) => `${address.slice(0, 6)}...${address.slice(-4)}`
 
+interface NFT {
+  id: string
+  title: string
+  price: string
+  priceSymbol: string
+  royalty: string
+  creator: string
+  owner: string
+  image: string
+  network: string
+}
+
+interface Collection {
+  id: string
+  name: string
+  items: number
+  volume: number
+  floorPrice: number
+}
+
 export default function Marketplace() {
-  const { DynamicNFTContract, RoyaltyContract, MonitorContract, ReactContract, WNFTContract, account, web3, selectedNetwork,IpfsHashStorageContract } = useWeb3()
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
-  const [priceRange, setPriceRange] = useState([0, 2])
-  const [nfts, setNfts] = useState([])
-  const [filteredNfts, setFilteredNfts] = useState([])
-  const [collections, setCollections] = useState([])
-  const [selectedCollection, setSelectedCollection] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [userBalance, setUserBalance] = useState('0')
-  const [searchTerm, setSearchTerm] = useState('')
-  const { theme, setTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
   const router = useRouter()
+  const { DynamicNFTContract, RoyaltyContract, MonitorContract, ReactContract, WNFTContract, account, web3, selectedNetwork, IpfsHashStorageContract } = useWeb3()
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 2])
+  const [nfts, setNfts] = useState<NFT[]>([])
+  const [filteredNfts, setFilteredNfts] = useState<NFT[]>([])
+  const [collections, setCollections] = useState<Collection[]>([])
+  const [selectedCollection, setSelectedCollection] = useState<string | null>(null)
+  const [loading, setLoading] = useState<boolean>(true)
+  const [userBalance, setUserBalance] = useState<string>('0')
+  const [searchTerm, setSearchTerm] = useState<string>('')
+  const { theme, setTheme } = useTheme()
+  const [mounted, setMounted] = useState<boolean>(false)
+
+ 
 
   const fetchNFTs = useCallback(async () => {
     setLoading(true)
-    setError(null)
     try {
-      let fetchedNFTs = []
+      const fetchedNFTs: NFT[] = []
       if (selectedNetwork === 'SEPOLIA') {
         const totalSupply = await DynamicNFTContract.methods.totalSupply().call()
         for (let i = 0; i < totalSupply; i++) {
@@ -49,12 +68,12 @@ export default function Marketplace() {
             const owner = await DynamicNFTContract.methods.ownerOf(tokenId).call()
             const royaltyInfo = await RoyaltyContract.methods.getRoyaltyInfo(DynamicNFTContract.options.address, tokenId).call()
             const listingPrice = await DynamicNFTContract.methods.tokenListingPrice(tokenId).call()
-            const ipfshash= await IpfsHashStorageContract.methods.getIPFSHash(tokenId).call();
+            const ipfshash = await IpfsHashStorageContract.methods.getIPFSHash(tokenId).call()
             if (owner !== DYNAMICNFT_CONTRACT_ADDRESS) {
               fetchedNFTs.push({
                 id: tokenId,
                 title: `NFT #${formatTokenId(tokenId)}`,
-                price: web3?.utils.fromWei(listingPrice, 'ether'),
+                price: web3?.utils.fromWei(listingPrice, 'ether') || '0',
                 priceSymbol: 'ETH',
                 royalty: royaltyInfo.beneficiary !== '0x0000000000000000000000000000000000000000' ? `${Number(royaltyInfo.baseRate) / 100}%` : 'N/A',
                 creator: royaltyInfo.beneficiary,
@@ -65,15 +84,15 @@ export default function Marketplace() {
             }
           }
         }
-      } 
+      }
       setNfts(fetchedNFTs)
       setFilteredNfts(fetchedNFTs)
       
-      // Group NFTs into collections based on creator address
-      const groupedCollections = fetchedNFTs.reduce((acc, nft) => {
+      const groupedCollections: { [key: string]: Collection } = fetchedNFTs.reduce((acc, nft) => {
         if (nft.creator === '0x0000000000000000000000000000000000000000') {
           nft.creator = nft.owner
         }
+        const priceAsNumber = parseFloat(nft.price)
         if (!acc[nft.creator]) {
           acc[nft.creator] = {
             id: nft.creator,
@@ -84,53 +103,38 @@ export default function Marketplace() {
           }
         }
         acc[nft.creator].items++
-        acc[nft.creator].volume += parseFloat(nft.price)
-        acc[nft.creator].floorPrice = Math.min(acc[nft.creator].floorPrice, parseFloat(nft.price))
+        acc[nft.creator].volume += priceAsNumber
+        acc[nft.creator].floorPrice = Math.min(acc[nft.creator].floorPrice, priceAsNumber)
         return acc
-      }, {})
+      }, {} as { [key: string]: Collection })
 
       setCollections(Object.values(groupedCollections))
     } catch (err) {
       console.error("Error fetching NFTs:", err)
-      setError("Failed to fetch NFTs. Please try again later.")
     } finally {
       setLoading(false)
     }
-  }, [DynamicNFTContract, RoyaltyContract, WNFTContract, web3, selectedNetwork])
+  }, [DynamicNFTContract, RoyaltyContract, IpfsHashStorageContract, web3, selectedNetwork])
 
-  const fetchUserBalance = useCallback(async () => {
-    try {
-      if (selectedNetwork === 'SEPOLIA') {
-        const balance = await web3.eth.getBalance(account)
-        setUserBalance(web3.utils.fromWei(balance, 'ether'))
-      } else {
-        const balance = await ReactContract.methods.balanceOf(account).call()
-        setUserBalance(web3.utils.fromWei(balance, 'ether'))
-      }
-    } catch (err) {
-      console.error("Error fetching user balance:", err)
-    }
-  }, [ReactContract, account, web3, selectedNetwork])
-
-  useEffect(() => {
-    setMounted(true)
-    if (account) {
-      fetchNFTs()
-      fetchUserBalance()
-    }
-  }, [account, selectedNetwork, fetchNFTs, fetchUserBalance])
-
-  const handleBuyNow = (nft) => {
+  const handleBuyNow = (nft: NFT) => {
     router.push(`/buyNFT/${nft.id}?network=${nft.network}`)
   }
 
-  const handleSearch = (event) => {
+  const handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(event.target.value)
   }
 
-  const handleCollectionFilter = (collectionId) => {
+  const handleCollectionFilter = (collectionId: string) => {
     setSelectedCollection(collectionId === selectedCollection ? null : collectionId)
   }
+
+  const handlePriceRangeChange = (value: number[]) => {
+    setPriceRange([value[0], value[1]])
+  }
+  useEffect(() => {
+    setMounted(true)
+    fetchNFTs()
+  }, [fetchNFTs])
 
   const filteredAndSearchedNfts = useMemo(() => {
     return filteredNfts.filter(nft => 
@@ -151,6 +155,24 @@ export default function Marketplace() {
 
   if (!mounted) return null
 
+  if (selectedNetwork !== 'SEPOLIA') {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background dark:bg-gray-900">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-center text-red-500">Wrong Network</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-center mb-4">Please switch to the Sepolia network to view the Marketplace.</p>
+            <Button className="w-full" onClick={() => window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0xaa36a7' }]})}>
+              Switch to Sepolia
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col min-h-screen bg-background dark:bg-gray-900 transition-colors duration-300">
       <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 dark:bg-gray-900/95 dark:border-gray-800">
@@ -166,7 +188,7 @@ export default function Marketplace() {
           </div>
           <div className="flex items-center space-x-4">
             <p className="text-sm font-medium dark:text-gray-200">
-              Balance: {parseFloat(userBalance).toFixed(4)} {selectedNetwork === 'SEPOLIA' ? 'ETH' : 'REACT'}
+              Balance: {parseFloat(userBalance).toFixed(4)} ETH
             </p>
             <Button variant="ghost" size="icon" onClick={() => setViewMode('grid')}>
               <Grid className={`h-4 w-4 ${viewMode === 'grid' ? 'text-primary' : 'text-muted-foreground'}`} />
@@ -191,15 +213,15 @@ export default function Marketplace() {
             <div>
               <h3 className="font-semibold mb-2 dark:text-gray-200">Price Range</h3>
               <Slider
-                min={selectedNetwork === 'SEPOLIA' ? 0.01 : 1}
-                max={selectedNetwork === 'SEPOLIA' ? 2 : 5}
+                min={0.01}
+                max={2}
                 step={0.01}
                 value={priceRange}
-                onValueChange={setPriceRange}
+                onValueChange={handlePriceRangeChange}
               />
               <div className="flex justify-between mt-2 dark:text-gray-300">
-                <span>{priceRange[0]} {selectedNetwork === 'SEPOLIA' ? 'ETH' : 'REACT'}</span>
-                <span>{priceRange[1]} {selectedNetwork === 'SEPOLIA' ? 'ETH' : 'REACT'}</span>
+                <span>{priceRange[0]} ETH</span>
+                <span>{priceRange[1]} ETH</span>
               </div>
             </div>
             <div>
@@ -216,7 +238,7 @@ export default function Marketplace() {
               ))}
             </div>
             <Button className="w-full" onClick={() => {
-              setPriceRange([selectedNetwork === 'SEPOLIA' ? 0.01 : 1, selectedNetwork === 'SEPOLIA' ? 2 : 5])
+              setPriceRange([0.01, 2])
               setSelectedCollection(null)
               setSearchTerm('')
             }}>
@@ -229,11 +251,6 @@ export default function Marketplace() {
               <div className="flex justify-center items-center h-64">
                 <p className="text-lg dark:text-white">Loading NFTs...</p>
               </div>
-            ) : error ? (
-              <Alert variant="destructive">
-                <AlertTitle>Error</AlertTitle>
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
             ) : (
               <>
                 <div className="mb-8 overflow-x-auto">
@@ -246,9 +263,9 @@ export default function Marketplace() {
                         <CardContent>
                           <div className="grid grid-cols-2 gap-2 text-sm dark:text-gray-300">
                             <div>Volume:</div>
-                            <div className="font-semibold">{collection.volume.toFixed(2)} {selectedNetwork === 'SEPOLIA' ? 'ETH' : 'REACT'}</div>
+                            <div className="font-semibold">{collection.volume.toFixed(2)} ETH</div>
                             <div>Floor Price:</div>
-                            <div className="font-semibold">{collection.floorPrice.toFixed(2)} {selectedNetwork === 'SEPOLIA' ? 'ETH' : 'REACT'}</div>
+                            <div className="font-semibold">{collection.floorPrice.toFixed(2)} ETH</div>
                             <div>Items:</div>
                             <div className="font-semibold">{collection.items}</div>
                           </div>
@@ -263,7 +280,6 @@ export default function Marketplace() {
                     <Card key={nft.id} className={`${viewMode === 'list' ? 'flex' : ''} dark:bg-gray-800`}>
                       <div className={viewMode === 'list' ? 'w-1/3' : ''}>
                         <img
-                          
                           src={nft.image}
                           alt={nft.title}
                           className="w-full h-auto object-cover aspect-square rounded-t-lg"
@@ -283,31 +299,31 @@ export default function Marketplace() {
                             <p className="text-sm dark:text-gray-300 mr-1">Royalty: {nft.royalty}</p>
                             {nft.royalty === 'N/A' && (
                               <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger>
-                                    <Info className="h-4 w-4 text-muted-foreground" />
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>This NFT has no royalty configuration</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            )}
-                          </div>
-                          <p className="text-sm dark:text-gray-300">Network: {nft.network}</p>
-                        </CardContent>
-                        <CardFooter>
-                          <Button className="w-full" onClick={() => handleBuyNow(nft)}>Buy Now</Button>
-                        </CardFooter>
-                      </div>
-                    </Card>
-                  ))}
-                </div>
-              </>
-            )}
-          </main>
-        </div>
+                              <Tooltip>
+                                <TooltipTrigger>
+                                  <Info className="h-4 w-4 text-muted-foreground" />
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>This NFT has no royalty configuration</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                        </div>
+                        <p className="text-sm dark:text-gray-300">Network: {nft.network}</p>
+                      </CardContent>
+                      <CardFooter>
+                        <Button className="w-full" onClick={() => handleBuyNow(nft)}>Buy Now</Button>
+                      </CardFooter>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </>
+          )}
+        </main>
       </div>
     </div>
-  )
+  </div>
+)
 }
