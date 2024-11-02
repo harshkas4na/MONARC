@@ -159,13 +159,7 @@ export default function Dashboard() {
       <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 dark:bg-gray-900/95 dark:border-gray-800">
         <div className="container flex items-center justify-between h-16 px-4">
           <h1 className="text-2xl font-bold dark:text-white">Creator Dashboard</h1>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
-          >
-            {theme === 'light' ? <Moon className="h-6 w-6" /> : <Sun className="h-6 w-6" />}
-          </Button>
+          
         </div>
       </header>
 

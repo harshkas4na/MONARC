@@ -226,13 +226,7 @@ export default function AnalyticsDashboard() {
       <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 dark:bg-gray-900/95 dark:border-gray-800">
         <div className="container flex items-center justify-between h-16 px-4">
           <h1 className="text-2xl font-bold dark:text-white">Analytics Dashboard</h1>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          >
-            {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-          </Button>
+          
         </div>
       </header>
 

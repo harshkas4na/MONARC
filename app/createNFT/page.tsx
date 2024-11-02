@@ -262,7 +262,7 @@ export default function NFTRoyaltyManager() {
                     <span>Minting NFT...</span>
                   </div>
                 ) : (
-                  'Mint NFT'
+                  'Mint NFT & Set Royalty Configuration'
                 )}
               </Button>
             </CardFooter>
