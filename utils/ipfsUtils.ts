@@ -1,7 +1,7 @@
 export const uploadImageToIPFS = async (file:File) => {
   try {
     // Validate file
-    console.log(process.env.NEXT_PUBLIC_JWT_SECRET_ACCESS_TOKEN)
+    
     if (!file) {
 
       throw new Error("No file provided");
