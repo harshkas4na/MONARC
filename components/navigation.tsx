@@ -314,10 +314,7 @@ export default function Navigation() {
                 className="h-9 md:w-[300px] text-black dark:text-white dark:bg-gray-800 lg:w-[300px]"
               />
             </div>
-            {/* <Button size="icon" variant="ghost" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
-              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-              <span className="sr-only">Toggle theme</span>
-            </Button> */}
+            
             <ThemeToggle />
             <Button size="icon" variant="ghost">
               <Link href="/settings">
