@@ -1,4 +1,5 @@
 # Dynamic NFT Royalty System Using Reactive Smart Contracts
+![image](https://github.com/user-attachments/assets/60a3573b-10dc-4ee1-840f-a80840e1305f)
 
 ## 🌟 Problem Statement
 
