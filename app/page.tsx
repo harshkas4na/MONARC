@@ -28,35 +28,60 @@ export default function App() {
       <main className="flex-1">
         {/* Hero Section */}
         <section className="w-full py-12 md:py-24 lg:py-32 xl:py-48 bg-gradient-to-r from-blue-400 to-purple-400 dark:from-blue-600 dark:to-purple-600 relative overflow-hidden">
-          <div className="container px-4 md:px-6 relative z-10">
-            <div className="flex flex-col items-center space-y-4 text-center">
-              <div className="space-y-2">
-                <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl lg:text-6xl/none text-white">
-                  Dynamic NFT Royalties
-                </h1>
-                <p className="mx-auto max-w-[700px] text-gray-200 md:text-xl">
-                  Revolutionize your NFT earnings with our advanced royalty management platform.
-                </p>
-              </div>
-              <div className="space-x-4">
+  <div className="container px-4 md:px-6 relative z-10">
+    <div className="flex flex-col items-center space-y-8 text-center"> {/* Increased space-y from 4 to 8 */}
+    <div className="space-y-8"> {/* Increased spacing between elements */}
+      <h1 className="text-5xl font-extrabold tracking-tight sm:text-6xl md:text-7xl lg:text-8xl text-white">
+        <span className=" flex  dark:text-gray-800 mb-4"><img
+                className="w-32 h-32 ml-24 mr-8 rounded-full object-cover"
+                src="/MONARC.jpg"
+                alt="Logo"
+              /> MONARC</span>
+         {/* Added gold color for MONARC */}
+        <span className="block text-2xl sm:text-3xl md:text-4xl font-medium tracking-normal text-white/90 mt-4">
+          Supreme Authority in NFT Royalty Enforcement
+        </span>
+      </h1>
+      <p className="mx-auto max-w-[800px] text-lg sm:text-xl md:text-2xl text-white/80 leading-relaxed font-light">
+        Establishing absolute control over NFT royalties across all chains and marketplaces through our sovereign protocol.
+      </p>
+    </div>
+      <div className="flex flex-col sm:flex-row gap-6 justify-center w-full max-w-md mx-auto"> {/* Changed space-x-4 to flex with gap */}
+        <Button size="lg" className="bg-white text-blue-600 hover:bg-gray-100 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700 px-8"> {/* Added px-8 for wider buttons */}
+          <Link href="/createNFT">
+            Claim Your Sovereignty
+          </Link>
+        </Button>
+        <Button size="lg" variant="outline" className="bg-transparent text-white border-white hover:bg-white/10 px-8">
+          View the Protocol
+        </Button>
+      </div>
 
-                <Button size="lg" className="bg-white text-blue-600 hover:bg-gray-100 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700">
-                  <Link href="/createNFT">
-                    Create Your Own NFT
-                  </Link>
-                </Button>
-                <Button size="lg" variant="outline" className="bg-transparent text-white border-white hover:bg-white/10">
-                  Learn More
-                </Button>
-              </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mt-16 pt-8 border-t border-white/10 w-full"> {/* Increased mt-12 to mt-16 */}
+        {[
+          { value: "$1.8B+", label: "Annual Royalties Protected" },
+          { value: "40%", label: "Increased Collection Rate" },
+          { value: "100%", label: "Cross-Chain Coverage" },
+          { value: "24/7", label: "Automated Enforcement" },
+        ].map((stat, index) => (
+          <div key={index} className="flex flex-col items-center">
+            <div className="text-2xl md:text-3xl font-bold text-purple-300 mb-2"> {/* Added mb-2 */}
+              {stat.value}
+            </div>
+            <div className="text-sm text-gray-300 mt-1 text-center leading-relaxed"> {/* Added leading-relaxed */}
+              {stat.label}
             </div>
           </div>
-          {/* Abstract shapes */}
-          <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div className="absolute -top-1/4 -right-1/4 w-1/2 h-1/2 bg-purple-500 rounded-full opacity-20 animate-blob"></div>
-            <div className="absolute -bottom-1/4 -left-1/4 w-1/2 h-1/2 bg-blue-500 rounded-full opacity-20 animate-blob animation-delay-2000"></div>
-          </div>
-        </section>
+        ))}
+      </div>
+    </div>
+  </div>
+  {/* Abstract shapes */}
+  <div className="absolute inset-0 overflow-hidden pointer-events-none">
+    <div className="absolute -top-1/4 -right-1/4 w-1/2 h-1/2 bg-purple-500 rounded-full opacity-20 animate-blob"></div>
+    <div className="absolute -bottom-1/4 -left-1/4 w-1/2 h-1/2 bg-blue-500 rounded-full opacity-20 animate-blob animation-delay-2000"></div>
+  </div>
+</section>
 
         {/* Features Grid */}
         <section id="features" className="w-full py-12 md:py-24 lg:py-32 bg-gray-100 dark:bg-gray-800 transition-colors duration-300">

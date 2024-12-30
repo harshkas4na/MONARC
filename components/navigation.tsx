@@ -292,7 +292,12 @@ export default function Navigation() {
           </Sheet>
           <div className="mr-4 hidden md:flex">
             <Link href="/" className="mr-6 flex items-center space-x-2">
-              <span className="hidden font-bold sm:inline-block">NFT Royalty System</span>
+              <img
+                className="w-8 h-8 rounded-full object-cover"
+                src="/MONARC.jpg"
+                alt="Logo"
+              />
+              <span className="hidden font-bold sm:inline-block">MONARC</span>
             </Link>
             <nav className="flex items-center space-x-6 text-sm font-medium">
               {navItems.map((item) => (
