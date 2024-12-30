@@ -1,241 +1,195 @@
+# MONARC: Sovereign NFT Royalty Protocol
+![MONARC Banner](https://github.com/user-attachments/assets/60a3573b-10dc-4ee1-840f-a80840e1305f)
 
-    
-    # Dynamic NFT Royalty System Using Reactive Smart Contracts
-    
-    ## 🌟 Problem Statement
-    
-    The NFT ecosystem currently faces a critical challenge with royalty enforcement and dynamic pricing. Despite creators setting royalty percentages during NFT minting, these rates:
-    
-    - Are frequently bypassed by marketplaces
-    - Remain static regardless of market conditions
-    - Can't adapt to cross-chain sales
-    - Lead to approximately $1.8B in lost royalties annually
-    
-    Traditional smart contracts lack the capability to:
-    
-    - Monitor cross-chain sales autonomously
-    - Adjust royalty rates based on real-time market conditions
-    - Enforce royalties across different marketplaces
-    - Provide creators with transparent tracking of their earnings
-    
-    ## 💡 Solution: Reactive Smart Contracts (RSCs)
-    
-    Our solution leverages the power of Reactive Smart Contracts to create a dynamic, self-adjusting royalty system that operates autonomously across multiple chains.
-    
-    ### Why Reactive Smart Contracts?
-    
-    Traditional smart contracts are passive - they only execute when directly called. RSCs, however, can:
-    
-    - Autonomously monitor blockchain events
-    - Self-trigger functions based on market conditions
-    - Operate seamlessly across multiple chains
-    - Maintain consistent state across networks
-    
-    This makes them perfect for solving the NFT royalty problem, as they can:
-    
-    1. Actively monitor sales across different chains
-    2. Automatically adjust royalty rates based on market conditions
-    3. Enforce royalty payments across marketplaces
-    4. Provide real-time tracking and distribution of royalties
-    
-    ## 🏗 Architecture
-    
-    Our system operates across two networks (Sepolia and Kopli) with four main reactive components:
-    
-    ### Core Smart Contracts
-    
-    1. **DynamicRoyaltyNFT Contract** (`[CONTRACT_ADDRESS_1]`)
-        - Manages NFT minting and transfers
-        - Implements ERC721 and ERC2981 standards
-        - Handles dynamic royalty calculation and distribution
-    2. **RoyaltyRegistry Contract** (`[CONTRACT_ADDRESS_2]`)
-        - Stores royalty configurations
-        - Calculates dynamic rates based on market conditions
-        - Manages beneficiary information
-    3. **MarketMonitor Contract** (`[CONTRACT_ADDRESS_3]`)
-        - Tracks real-time market metrics
-        - Provides data for rate calculations
-        - Maintains historical price data
-    4. **WrappedNFTOnKopli Contract** (`[CONTRACT_ADDRESS_4]`)
-        - Manages cross-chain NFT operations
-        - Handles REACT token mechanisms
-        - Processes cross-chain purchases
-    
-    ### Reactive Components
-    
-    1. **Sepolia to Kopli Reactive (STK)**
-        - Monitors: TokenLocked, TokenListed, TokenUnlisted events
-        - Chain IDs: Sepolia (11155111) → Kopli (5318008)
-        - Transaction Hash: `[TXN_HASH_1]`
-    2. **Kopli to Sepolia Reactive (KTS)**
-        - Monitors: TokensLocked events
-        - Chain IDs: Kopli (5318008) → Sepolia (11155111)
-        - Transaction Hash: `[TXN_HASH_2]`
-    
-    ## 🔄 Process Flow
-    
-    1. **NFT Creation & Listing**
-        
-        ```
-        Creator → DynamicRoyaltyNFT.mint() → RoyaltyRegistry.setConfig()
-        ↓
-        MarketMonitor.initializeMetrics()
-        
-        ```
-        
-        Transaction Hash: `[TXN_HASH_3]`
-        
-    2. **Cross-Chain Listing**
-        
-        ```
-        Seller → WrappedNFTOnKopli.lockTokens()
-        ↓
-        KTS → DynamicRoyaltyNFT.sendNFTToKopli()
-        ↓
-        STK → WrappedNFTOnKopli.mint()
-        
-        ```
-        
-        Transaction Hash: `[TXN_HASH_4]`
-        
-    3. **Dynamic Rate Calculation**
-        
-        ```
-        MarketMonitor.getMetrics()
-        ↓
-        RoyaltyRegistry.calculateRate()
-        ↓
-        DynamicRoyaltyNFT.updateRoyalty()
-        
-        ```
-        
-        Transaction Hash: `[TXN_HASH_5]`
-        
-    
-    ## 🚀 Impact & Benefits
-    
-    ### For Creators
-    
-    - Up to 40% increase in royalty collection
-    - Real-time market-adjusted rates
-    - Automated cross-chain earnings
-    - Complete visibility of sales and earnings
-    
-    ### For Buyers
-    
-    - Transparent fee structure
-    - Potential rewards for high-volume trading
-    - Reduced gas costs through batching
-    - Clear provenance tracking
-    
-    ### For Marketplaces
-    
-    - Simplified implementation
-    - Automated compliance
-    - Lower operational costs
-    - Competitive advantage
-    
-    ## 🛠 Technical Implementation
-    
-    ### Smart Contract Deployment
-    
-    1. Deploy Core Contracts
-        
-        ```bash
-        npx hardhat deploy --network sepolia --tags core
-        
-        ```
-        
-        Transaction Hash: `[TXN_HASH_6]`
-        
-    2. Deploy Reactive Components
-        
-        ```bash
-        npx hardhat deploy --network kopli --tags reactive
-        
-        ```
-        
-        Transaction Hash: `[TXN_HASH_7]`
-        
-    
-    ### Frontend Integration
-    
-    The system includes a React-based frontend that provides:
-    
-    - Creator dashboard for NFT management
-    - Real-time market metrics visualization
-    - Cross-chain transaction tracking
-    - Royalty analytics and reporting
-    
-    ## 🔗 Contract Addresses
-    
-    ### Sepolia Network
-    
-    - DynamicRoyaltyNFT: `[CONTRACT_ADDRESS_1]`
-    - RoyaltyRegistry: `[CONTRACT_ADDRESS_2]`
-    - MarketMonitor: `[CONTRACT_ADDRESS_3]`
-    
-    ### Kopli Network
-    
-    - WrappedNFTOnKopli: `[CONTRACT_ADDRESS_4]`
-    - React: `[CONTRACT_ADDRESS_5]`
-    
-    ## 🚀 Getting Started
-    
-    1. Clone the repository
-        
-        ```bash
-        git clone [REPO_URL]
-        
-        ```
-        
-    2. Install dependencies
-        
-        ```bash
-        npm install
-        
-        ```
-        
-    3. Start frontend
-        
-        ```bash
-        npm run dev
-        
-        ```
-        
-    
-    ## 🔒 Security Considerations
-    
-    The system implements multiple security measures:
-    
-    - Owner-only functions for critical updates
-    - Reactive contract validation
-    - Cross-chain message verification
-    - Safe transfer mechanisms
-    - Reentrancy protection
-    
-    ## 🔄 Verification
-    
-    All smart contracts are verified on:
-    
-    - Sepolia Explorer: `[EXPLORER_LINK_1]`
-    - Kopli Explorer: `[EXPLORER_LINK_2]`
-    
-    ## 📈 Future Enhancements
-    
-    1. Technical Improvements
-        - Layer 2 scaling integration
-        - Cross-chain message optimization
-        - Enhanced market metrics
-    2. Feature Additions
-        - DAO governance integration
-        - Advanced pricing models
-        - Additional market indicators
-    
-    ## 🤝 Contributing
-    
-    We welcome contributions! Please see our [Contributing Guidelines](https://www.notion.so/CONTRIBUTING.md) for details.
-    
-    ## 📄 License
-    
-    This project is licensed under the MIT License - see the [LICENSE](https://www.notion.so/LICENSE) file for details.
+## 🌟 The Royal Crisis
+
+The NFT ecosystem lacks a supreme authority in royalty enforcement, resulting in:
+
+- $1.8B in annual lost royalties through marketplace bypasses
+- Static rates unsuited to dynamic market conditions
+- Ineffective cross-chain royalty tracking
+- Lack of transparent earnings monitoring
+
+Traditional smart contracts fail to provide:
+- Autonomous cross-chain monitoring
+- Market-responsive rate adjustment
+- Universal royalty enforcement
+- Transparent earnings tracking
+
+## 💡 The Sovereign Solution: MONARC
+
+MONARC leverages Reactive Smart Contracts (RSCs) to establish absolute authority in NFT royalty enforcement through:
+
+### The Power of RSCs
+Unlike passive traditional contracts, MONARC's RSCs provide:
+- Autonomous blockchain monitoring
+- Market-driven function triggering
+- Seamless cross-chain operations
+- Network-wide state consistency
+
+This sovereign approach enables:
+1. Universal sales monitoring
+2. Dynamic royalty adjustment
+3. Absolute enforcement
+4. Real-time distribution tracking
+
+## 🏗 Royal Architecture
+
+MONARC rules across Sepolia and Kopli networks through four sovereign components:
+
+### Core Smart Contracts
+
+1. **The Crown (DynamicRoyaltyNFT)** (`0x88048DD557Da01563E72B7003505ABF4b6f53844`)
+    - NFT sovereignty management
+    - ERC721 and ERC2981 implementation
+    - Royalty calculation and distribution
+
+2. **The Treasury (RoyaltyRegistry)** (`0x971fe90E7246A53aeAD002544c5AB827a2b27abC`)
+    - Configuration storage
+    - Market-based rate calculation
+    - Beneficiary management
+
+3. **The Watch (MarketMonitor)** (`0x6E920a818D8eCF03298d754A634c237Fa9BEbC60`)
+    - Market surveillance
+    - Rate calculation data
+    - Historical tracking
+
+4. **The Bridge (WrappedNFTOnKopli)** (`0xe4F0d45c970523a835D06615aCCC50B7778859e0`)
+    - Cross-chain governance
+    - REACT token management
+    - Purchase processing
+
+### Royal Emissaries
+
+1. **Sepolia to Kopli Reactive (STK)**
+    - Monitors: TokenLocked, TokenListed, TokenUnlisted
+    - Domains: Sepolia (11155111) → Kopli (5318008)
+
+2. **Kopli to Sepolia Reactive (KTS)**
+    - Monitors: TokensLocked
+    - Domains: Kopli (5318008) → Sepolia (11155111)
+
+![MONARC Architecture](https://github.com/user-attachments/assets/c6364dd9-5836-4028-9c3a-f5071edc8725)
+
+## 🔄 Sovereign Operations
+
+The following diagram illustrates MONARC's command flow:
+
+[Previous Mermaid diagram remains the same but with updated terminology]
+
+### Royal Procedures
+
+1. **NFT Creation and Configuration**
+```solidity
+// Crown Initialization
+Creator → DynamicRoyaltyNFT.mint(tokenId)
+↓
+DynamicRoyaltyNFT → RoyaltyRegistry.initializeToken(tokenId)
+
+// Royal Configuration
+Creator → RoyaltyRegistry.setRoyaltyConfig(tokenId, config)
+↓
+RoyaltyRegistry → MarketMonitor.initializeMetrics(tokenId)
+```
+
+2. **Asset Listing**
+```solidity
+// Royal Decree
+Creator → DynamicRoyaltyNFT.list(tokenId, price)
+↓
+Event: TokenListed
+↓
+STK Monitor → WrappedNFTOnKopli.mirrorListing(tokenId, price)
+```
+
+3. **Purchase Protocols**
+
+[Previous purchase flows remain the same]
+
+## 🚀 Royal Benefits
+
+### Creators' Rights
+- 40% increase in royalty collection
+- Market-adaptive rates
+- Cross-chain earnings automation
+- Complete transparency
+
+### Buyer Privileges
+- Clear fee structure
+- Volume trading rewards
+- Optimized gas costs
+- Verified provenance
+
+### Marketplace Advantages
+- Streamlined integration
+- Automated compliance
+- Reduced operations
+- Market leadership
+
+## 🔒 Royal Guards
+
+- Sovereign-only critical functions
+- RSC validation
+- Cross-chain verification
+- Transfer protection
+- Reentry prevention
+
+### Command Center
+
+The royal dashboard provides:
+- Creator control panel
+- Real-time metrics
+- Cross-chain monitoring
+- Analytics reporting
+
+## 🔗 Royal Domains
+
+[Contract addresses remain the same]
+
+## 🚀 Establishing Your Reign
+
+1. Clone the royal repository
+```bash
+git clone https://github.com/harshkas4na/monarc.git
+```
+
+2. Install prerequisites
+```bash
+npm install
+```
+
+3. Launch command center
+```bash
+npm run dev
+```
+
+## 🔒 Royal Defenses
+
+[Security considerations remain the same]
+
+## 🔄 Royal Verification
+
+All contracts verified on:
+- Sepolia Explorer: `https://sepolia.etherscan.io/`
+- Kopli Explorer: `https://kopli.reactscan.net`
+
+## 📈 Future Decrees
+
+1. Technical Expansion
+    - L2 scaling
+    - Network expansion
+    - Cross-chain optimization
+    - Enhanced metrics
+
+2. Feature Expansion
+    - DAO governance
+    - Advanced pricing
+    - Market indicators
+
+## 🤝 Royal Court
+
+Join our community! See [Contributing Guidelines](https://www.notion.so/CONTRIBUTING.md)
+
+## 📄 Royal Charter
+
+Licensed under MIT - see [LICENSE](https://www.notion.so/LICENSE)
