@@ -1,5 +1,5 @@
 # MONARC: Sovereign NFT Royalty Protocol
-![MONARC Banner](https://github.com/user-attachments/assets/60a3573b-10dc-4ee1-840f-a80840e1305f)
+![MONARC BANNER](https://github.com/user-attachments/assets/cc99eddb-7ebd-4e6f-97f6-ff89c44ab7b7)
 
 ## 🌟 The Royal Crisis
 
