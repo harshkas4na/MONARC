@@ -174,7 +174,7 @@ export default function Dashboard() {
               <CardContent className="pt-6">
                 <p className="text-center text-gray-600 dark:text-gray-300 mb-4">You haven't minted any NFTs yet.</p>
                 <div className="flex justify-center">
-                  <Button onClick={() => router.push('/create-nft')}>Mint Your First NFT</Button>
+                  <Button onClick={() => router.push('/createNFT')}>Mint Your First NFT</Button>
                 </div>
               </CardContent>
             </Card>
