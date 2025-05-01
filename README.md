@@ -52,7 +52,7 @@ MONARC rules across Sepolia and Kopli networks through four sovereign components
     - Beneficiary management
 
 3. **The Watch (MarketMonitor)** (`0x6E920a818D8eCF03298d754A634c237Fa9BEbC60`)
-    - Market surveillance
+    - Market surveillancealice in borderland vs 
     - Rate calculation data
     - Historical tracking
 
